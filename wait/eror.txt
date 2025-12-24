@@ -1,0 +1,140 @@
+Illuminate
+ \ 
+Database
+ \ 
+Eloquent
+ \ 
+RelationNotFoundException
+PHP 8.1.10
+10.50.0
+Call to undefined relationship [profession] on model [App\Models\User].
+
+Expand vendor frames
+7 vendor frames
+App
+ \ 
+Http
+ \ 
+Controllers
+ \ 
+Admin
+ \ 
+EmployeeController
+ 
+: 16
+index
+6 vendor frames
+App
+ \ 
+Http
+ \ 
+Middleware
+ \ 
+IsAdminMiddleware
+ 
+: 23
+handle
+40 vendor frames
+C:\laragon\www\absensi\public\index
+.php
+ 
+: 52
+require_once
+1 vendor frame
+C:\laragon\www\absensi\app\Http\Controllers\Admin\EmployeeController
+.php
+ 
+: 16
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<?php
+
+
+
+namespace App\Http\Controllers\Admin;
+
+
+
+use App\Http\Controllers\Controller;
+
+use App\Models\User;
+
+use App\Models\Profession;
+
+use Illuminate\Http\Request;
+
+use Illuminate\Support\Facades\Hash;
+
+use Illuminate\Support\Str;
+
+
+
+class EmployeeController extends Controller
+
+{
+
+    public function index()
+
+    {
+
+        $employees = User::where('is_admin', false)->with('profession')->get();
+
+        return view('admin.employees.index', compact('employees'));
+
+    }
+
+
+
+    public function create()
+
+    {
+
+        $professions = Profession::all();
+
+        return view('admin.employees.create', compact('professions'));
+
+    }
+
+
+
+    public function store(Request $request)
+
+    {
+
+        $request->validate([
+
+            'name' => 'required|string|max:255|unique:users',
+
+            'email' => 'required|string|email|max:255|unique:users',
+arguments
+$columns:array
+[

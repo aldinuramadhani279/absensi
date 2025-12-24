@@ -1,0 +1,172 @@
+Terima kasih atas analisis dan todolist bug yang sudah kamu buat. Sekarang kita akan masuk ke fase EKSEKUSI PERBAIKAN.
+
+## 🔧 MODE: BUG FIX EXECUTION
+
+Berdasarkan todolist bug yang sudah kamu identifikasi sebelumnya, sekarang kita akan memperbaikinya satu per satu.
+
+## INSTRUKSI EKSEKUSI:
+
+### 1. PILIH BUG UNTUK DIPERBAIKI
+Mulai dari bug dengan **PRIORITAS TINGGI (Critical)** terlebih dahulu. 
+
+Untuk setiap bug yang akan diperbaiki, berikan output dengan format:
+
+---
+
+## 🔧 FIX #[nomor]: [Deskripsi Bug dari Todolist]
+
+### 📍 **Referensi**
+- **File:** `path/to/file.ext`
+- **Line:** XX-YY
+- **Priority:** [CRITICAL/MAJOR/MINOR]
+- **Dari Todolist:** ✅ [copy item dari todolist yang sudah dibuat]
+
+---
+
+### ❌ **KODE SEBELUM (BROKEN):**
+```[language]
+[paste KODE LENGKAP yang bermasalah dengan konteks di sekitarnya]
+```
+
+---
+
+### ✅ **KODE SESUDAH (FIXED):**
+```[language]
+[paste KODE LENGKAP yang sudah diperbaiki]
+```
+
+---
+
+### 📝 **PENJELASAN PERBAIKAN:**
+
+**Masalah yang diperbaiki:**
+- [Jelaskan apa masalahnya]
+
+**Solusi yang diterapkan:**
+1. [Perubahan pertama dan alasannya]
+2. [Perubahan kedua dan alasannya]
+3. [dst...]
+
+**Mengapa solusi ini:**
+- [Jelaskan kenapa memilih cara ini]
+- [Alternatif lain yang dipertimbangkan]
+
+---
+
+### 🧪 **CARA TESTING:**
+```[language]
+// Test manual atau automated test
+[Berikan contoh cara test bug sudah fixed]
+```
+
+**Expected Result setelah fix:**
+- [Jelaskan behavior yang diharapkan setelah fix]
+
+---
+
+### ⚠️ **PERHATIAN:**
+- [Jika ada breaking changes, jelaskan]
+- [Jika ada file lain yang perlu diubah, sebutkan]
+- [Jika perlu install/update dependencies, jelaskan]
+
+---
+
+### ✅ **UPDATE TODOLIST:**
+
+ [FILE: path/to/file.ext, LINE: XX] Deskripsi bug - ✅ FIXED
+
+Fixed by: [Ringkasan solusi]
+Tested: [✅/❌]
+
+
+
+
+---
+
+## WORKFLOW PERBAIKAN:
+
+**Lakukan perbaikan dengan urutan:**
+
+### **BATCH 1 - CRITICAL BUGS** (Fix segera)
+Ambil semua bug PRIORITAS TINGGI dari todolist, fix satu per satu dengan format di atas.
+
+### **BATCH 2 - MAJOR BUGS** (Fix selanjutnya)
+Setelah batch 1 selesai, lanjut ke PRIORITAS SEDANG.
+
+### **BATCH 3 - MINOR BUGS** (Opsional)
+Fix minor bugs jika masih ada waktu/resource.
+
+---
+
+## SETELAH SETIAP FIX:
+
+1. ✅ Tandai bug sebagai FIXED di todolist
+2. 📊 Update statistics (berapa bug sudah fixed)
+3. 🔍 Cek apakah fix ini mempengaruhi bug lain di todolist
+4. 📝 Catat jika ada bug baru yang ditemukan saat fixing
+
+---
+
+## FORMAT PROGRESS REPORT:
+
+Setiap selesai beberapa fix, berikan progress report:
+📊 PROGRESS REPORT
+Bugs Fixed: X/Y
+Current Batch: [CRITICAL/MAJOR/MINOR]
+Completed Fixes:
+✅ Fix #1: [deskripsi singkat]
+✅ Fix #2: [deskripsi singkat]
+✅ Fix #3: [deskripsi singkat]
+In Progress:
+🔄 Fix #4: [deskripsi singkat]
+Next Up:
+⏭️ Fix #5: [deskripsi singkat]
+⏭️ Fix #6: [deskripsi singkat]
+Remaining:
+
+ X Critical bugs
+ Y Major bugs
+ Z Minor bugs
+
+
+---
+
+## COMMAND UNTUK MEMULAI:
+
+**Pilih salah satu command:**
+
+1️⃣ **"Fix semua bug CRITICAL sekarang"**
+   → Akan fix semua bug prioritas tinggi secara berurutan
+
+2️⃣ **"Fix bug #[nomor] dari todolist"**
+   → Akan fix bug spesifik yang kamu pilih
+
+3️⃣ **"Fix bug di file [nama_file]"**
+   → Akan fix semua bug di file tertentu
+
+4️⃣ **"Fix 5 bug teratas dari todolist"**
+   → Akan fix 5 bug paling prioritas
+
+5️⃣ **"Tunjukkan rencana perbaikan untuk semua bug"**
+   → Akan buat roadmap perbaikan sebelum eksekusi
+
+---
+
+## ATURAN PENTING:
+
+1. **Satu fix per response** (kecuali bug sangat simple dan related)
+2. **Selalu berikan kode LENGKAP** dengan konteks, bukan cuma snippet
+3. **Jelaskan MENGAPA**, bukan hanya BAGAIMANA
+4. **Berikan cara TEST** untuk setiap fix
+5. **Update todolist** setiap selesai fix
+
+---
+
+## READY TO FIX!
+
+Silakan berikan command untuk memulai perbaikan, atau beri tahu bug mana yang ingin diperbaiki terlebih dahulu berdasarkan todolist yang sudah dibuat.
+
+Contoh:
+- "Fix semua bug CRITICAL sekarang"
+- "Mulai dari bug pertama di todolist"
+- "Fix bug SQL Injection di file user.js line 45"

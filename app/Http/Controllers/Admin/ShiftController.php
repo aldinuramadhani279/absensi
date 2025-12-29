@@ -11,27 +11,23 @@ class ShiftController extends Controller
 {
     public function index()
     {
-        $shifts = Shift::with('profession')->get();
-        return view('admin.shifts.index', compact('shifts'));
-    }
-
-    public function create()
-    {
-        $professions = Profession::all();
-        return view('admin.shifts.create', compact('professions'));
+        $shifts = Shift::with('profession')->latest()->get();
+        return response()->json($shifts);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'profession_id' => 'required|exists:professions,id',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
         ]);
 
-        Shift::create($request->all());
+        $shift = Shift::create($validated);
+        // Load the profession relationship to include it in the response
+        $shift->load('profession');
 
-        return redirect()->route('admin.shifts.index')->with('success', 'Shift berhasil dibuat.');
+        return response()->json($shift, 201);
     }
 }

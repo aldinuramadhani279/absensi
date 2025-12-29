@@ -14,65 +14,62 @@ class EmployeeController extends Controller
 {
     public function index()
     {
-        $employees = User::where('is_admin', false)->with('profession')->get();
-        return view('admin.employees.index', compact('employees'));
-    }
-
-    public function create()
-    {
-        $professions = Profession::all();
-        return view('admin.employees.create', compact('professions'));
+        $employees = User::where('is_admin', false)->with('profession')->latest()->get();
+        return response()->json($employees);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255|unique:users',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => 'required|string|min:8',
             'profession_id' => 'required|exists:professions,id',
             'status' => 'required|in:pns,non-pns',
-            'nip' => 'nullable|required_if:status,pns|string',
+            'nip' => 'nullable|required_if:status,pns|string|unique:users,nip',
         ]);
 
-        DB::transaction(function () use ($request) {
+        $employee = null;
+        DB::transaction(function () use ($validated, &$employee) {
             $employee_id = null;
-            if ($request->status == 'non-pns') {
-                // As per the prompt, "mendapatkan sebuah nomor random acak dari system urut aja dari 1 hingga seterusnya"
-                // This means a sequential number. We'll find the max `employee_id` and add 1.
+            if ($validated['status'] == 'non-pns') {
                 $lastEmployee = User::where('status', 'non-pns')
-                                    ->orderBy('employee_id', 'desc')
-                                    ->lockForUpdate() // Kunci baris untuk mencegah race condition
+                                    ->orderByRaw('CAST(employee_id AS UNSIGNED) DESC')
+                                    ->lockForUpdate()
                                     ->first();
                 $employee_id = $lastEmployee ? (int)$lastEmployee->employee_id + 1 : 1;
             }
     
-            User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'profession_id' => $request->profession_id,
-                'status' => $request->status,
-                'nip' => $request->nip,
-                'employee_id' => (string)$employee_id,
+            $employee = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'profession_id' => $validated['profession_id'],
+                'status' => $validated['status'],
+                'nip' => $validated['nip'] ?? null,
+                'employee_id' => $employee_id ? (string)$employee_id : null,
             ]);
         });
 
-        return redirect()->route('admin.employees.index')->with('success', 'Karyawan berhasil dibuat.');
+        // Load the profession relationship
+        $employee->load('profession');
+
+        return response()->json($employee, 201);
     }
 
     public function destroy(User $employee)
     {
+        // Add authorization check if needed
         $employee->delete();
-        return redirect()->route('admin.employees.index')->with('success', 'Karyawan berhasil dihapus.');
+        return response()->json(null, 204);
     }
 
     public function resetPassword(User $employee)
     {
-        $newPassword = Str::random(8);
-        $employee->password = Hash::make($newPassword);
+        $employee->password = Hash::make('12345678');
+        $employee->must_change_password = true;
         $employee->save();
 
-        return redirect()->route('admin.employees.index')->with('success', 'Kata sandi untuk ' . $employee->name . ' telah berhasil diatur ulang.');
+        return response()->json(['message' => 'Password for ' . $employee->name . ' has been reset successfully.']);
     }
 }

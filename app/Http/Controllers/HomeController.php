@@ -29,26 +29,24 @@ class HomeController extends Controller
     {
         $user = Auth::user();
         $today = Carbon::today();
-        $forgotClockOut = null;
 
-        // Check for forgotten clock-out from previous days
-        $lastAttendance = Attendance::where('user_id', $user->id)
+        $hasForgotClockOut = Attendance::where('user_id', $user->id)
             ->whereDate('clock_in', '<', $today)
             ->whereNull('clock_out')
-            ->orderBy('clock_in', 'desc')
-            ->first();
+            ->exists();
 
-        if ($lastAttendance) {
-            $forgotClockOut = $lastAttendance;
-        }
-
-        $attendance = Attendance::where('user_id', $user->id)
+        $attendance = Attendance::with('shift')->where('user_id', $user->id)
             ->whereDate('clock_in', $today)
             ->first();
 
         $shifts = Shift::where('profession_id', $user->profession_id)->get();
 
-        return view('home', compact('attendance', 'shifts', 'forgotClockOut'));
+        return response()->json([
+            'user' => $user,
+            'attendance' => $attendance,
+            'shifts' => $shifts,
+            'has_forgot_clock_out' => $hasForgotClockOut,
+        ]);
     }
 
     /**
@@ -61,9 +59,9 @@ class HomeController extends Controller
         $user = Auth::user();
         $attendances = Attendance::with('shift') // Eager load the shift relationship
             ->where('user_id', $user->id)
-            ->orderBy('clock_in', 'desc')
+            ->latest('clock_in')
             ->paginate(15); // Paginate for long histories
 
-        return view('history', compact('attendances'));
+        return response()->json($attendances);
     }
 }

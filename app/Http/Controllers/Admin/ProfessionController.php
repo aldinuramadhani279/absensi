@@ -11,22 +11,17 @@ class ProfessionController extends Controller
     public function index()
     {
         $professions = Profession::all();
-        return view('admin.professions.index', compact('professions'));
-    }
-
-    public function create()
-    {
-        return view('admin.professions.create');
+        return response()->json($professions);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255|unique:professions',
         ]);
 
-        Profession::create($request->all());
+        $profession = Profession::create($validated);
 
-        return redirect()->route('admin.professions.index')->with('success', 'Jabatan berhasil dibuat.');
+        return response()->json($profession, 201);
     }
 }

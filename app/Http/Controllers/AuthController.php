@@ -15,7 +15,9 @@ class AuthController extends Controller
 
     public function showRegister()
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register', [
+            'professions' => \App\Models\Profession::all(['id', 'name']),
+        ]);
     }
 
     public function login(Request $request)
@@ -73,12 +75,14 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
+            'profession_id' => 'required|exists:professions,id',
         ]);
 
         $user = \App\Models\User::create([
             'name' => $validated['name'],
             'username' => $validated['username'],
             'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'profession_id' => $validated['profession_id'],
             'is_admin' => false,
             'status' => 'non-pns', // Default status, can be adjusted
         ]);

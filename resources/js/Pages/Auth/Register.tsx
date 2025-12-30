@@ -6,13 +6,30 @@ import { Label } from "@/Components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/Components/ui/card"
 import { Alert, AlertDescription } from "@/Components/ui/alert"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/Components/ui/select"
 import type React from "react"
 
-export default function RegisterPage() {
+interface Profession {
+    id: number;
+    name: string;
+}
+
+interface RegisterPageProps {
+    professions: Profession[];
+}
+
+export default function RegisterPage({ professions }: RegisterPageProps) {
     const [name, setName] = useState("")
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
     const [passwordConfirmation, setPasswordConfirmation] = useState("")
+    const [professionId, setProfessionId] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [errorLocal, setErrorLocal] = useState("")
@@ -31,13 +48,19 @@ export default function RegisterPage() {
             return
         }
 
+        if (!professionId) {
+            setErrorLocal("Silakan pilih posisi / jabatan")
+            return
+        }
+
         setIsLoading(true)
 
         router.post('/register', {
             name,
             username,
             password,
-            password_confirmation: passwordConfirmation
+            password_confirmation: passwordConfirmation,
+            profession_id: professionId
         }, {
             onError: (errors: any) => {
                 setErrorLocal(Object.values(errors)[0] as string || "Registrasi gagal.");
@@ -77,6 +100,24 @@ export default function RegisterPage() {
                                 className="h-11"
                                 required
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="profession" className="text-sm font-medium">
+                                Posisi / Jabatan
+                            </Label>
+                            <Select onValueChange={setProfessionId} value={professionId} disabled={isLoading}>
+                                <SelectTrigger id="profession" className="h-11">
+                                    <SelectValue placeholder="Pilih Posisi / Jabatan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {professions.map((profession) => (
+                                        <SelectItem key={profession.id} value={profession.id.toString()}>
+                                            {profession.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="space-y-2">

@@ -6,89 +6,141 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Attendance;
 use App\Models\Shift;
-use Carbon\Carbon;
 
 class AttendanceController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
     public function clockIn(Request $request)
     {
-        $request->validate(['shift_id' => 'required|exists:shifts,id']);
+        $request->validate([
+            'shift_id' => 'required|exists:shifts,id',
+        ]);
 
         $user = Auth::user();
-        $today = Carbon::today();
-        $now = Carbon::now();
+        $today = now()->today();
 
-        if (Attendance::where('user_id', $user->id)->whereDate('clock_in', $today)->exists()) {
-            return response()->json(['message' => 'Anda sudah melakukan clock in hari ini.'], 409);
+        // Check if already clocked in today
+        $existing = Attendance::where('user_id', $user->id)
+            ->whereDate('created_at', $today)
+            ->first();
+
+        if ($existing) {
+            return response()->json(['message' => 'Anda sudah melakukan clock in hari ini.'], 400);
         }
 
-        if (Attendance::where('clock_in_ip', $request->ip())->where('shift_id', $request->shift_id)->whereDate('clock_in', $today)->exists()) {
-            return response()->json(['message' => 'Alamat IP ini sudah digunakan untuk clock in pada shift ini hari ini.'], 409);
+        // Check for unresolved previous attendance (forgot clock out)
+        $forgotOut = Attendance::where('user_id', $user->id)
+            ->whereNull('clock_out')
+            ->whereDate('created_at', '<', $today)
+            ->exists();
+
+        if ($forgotOut) {
+            // Logic can vary here, maybe block or allow with warning. 
+            // For now, let's allow but maybe the frontend shows a warning (which it does).
         }
         
-        $shift = Shift::find($request->shift_id);
-        $startTime = Carbon::parse($shift->start_time);
-        $status = 'on_time';
-        if ($now->gt($startTime)) $status = 'late';
-        if ($now->lt($startTime)) $status = 'early';
-
         $attendance = Attendance::create([
             'user_id' => $user->id,
             'shift_id' => $request->shift_id,
-            'clock_in' => $now,
+            'clock_in' => now(),
+            'status' => 'present',
             'clock_in_ip' => $request->ip(),
-            'status' => $status,
         ]);
+        
+        // Determine status based on shift time and simple 10m tolerance
+        $shift = Shift::find($request->shift_id);
+        $statusMessage = 'Tepat Waktu';
+        $status = 'tepat waktu';
+        $statusCode = 'ontime'; // early, ontime, late
+        $timeDiffMessage = '';
+        
+        if ($shift) {
+            // Shift start time from DB is usually H:i:s string
+            $shiftStartPart = \Carbon\Carbon::parse($shift->start_time);
+            
+            // Create Carbon instance for Today at Shift Start Time
+            $shiftStart = now()->setTime($shiftStartPart->hour, $shiftStartPart->minute, $shiftStartPart->second);
+            
+            // The actual clock-in time
+            $clockInTime = now();
+            
+            // Tolerance in minutes
+            $tolerance = 10; 
+            
+            // Check if Late
+            if ($clockInTime->gt($shiftStart)) {
+                $minsLate = $clockInTime->diffInMinutes($shiftStart);
+                
+                if ($minsLate > $tolerance) {
+                    $status = 'terlambat';
+                    $statusCode = 'late';
+                    $hours = intdiv($minsLate, 60);
+                    $mins = $minsLate % 60;
+                    $statusMessage = 'Anda Terlambat';
+                    $timeDiffMessage = $hours > 0 ? "{$hours} jam {$mins} menit" : "{$mins} menit";
+                } else {
+                    // Within 10 mins tolerance after start
+                    $status = 'tepat waktu';
+                    $statusCode = 'ontime';
+                    $statusMessage = 'Anda Tepat Waktu (Dalam Toleransi)';
+                    $timeDiffMessage = "Lewat {$minsLate} menit (masih toleransi)";
+                }
+            } else {
+                // Early (Before start)
+                $minsEarly = $shiftStart->diffInMinutes($clockInTime);
+                
+                if ($minsEarly > $tolerance) {
+                    $status = 'lebih awal'; // or 'tepat waktu' if you don't track early separately in DB
+                    $statusCode = 'early';
+                    $hours = intdiv($minsEarly, 60);
+                    $mins = $minsEarly % 60;
+                    $statusMessage = 'Anda Masuk Lebih Awal';
+                    $timeDiffMessage = $hours > 0 ? "{$hours} jam {$mins} menit" : "{$mins} menit";
+                } else {
+                    // Within 10 mins before start
+                    $status = 'tepat waktu';
+                    $statusCode = 'ontime';
+                    $statusMessage = 'Anda Tepat Waktu';
+                    $timeDiffMessage = 'Tepat waktu';
+                }
+            }
+            
+            // Update the attendance record with the determined status
+            $attendance->update([
+                'status' => $status
+            ]);
+            
+            // Re-fetch to ensure object is sync
+            $attendance->refresh();
+        }
 
-        return response()->json($attendance->load('shift'), 201);
+        return response()->json([
+            'message' => 'Clock In Berhasil', 
+            'attendance' => $attendance,
+            'status_label' => $statusMessage,
+            'status_code' => $statusCode,
+            'time_diff' => $timeDiffMessage
+        ]);
     }
 
     public function clockOut(Request $request)
     {
         $user = Auth::user();
+        $today = now()->today();
+
         $attendance = Attendance::where('user_id', $user->id)
-            ->whereDate('clock_in', Carbon::today())
+            ->whereDate('created_at', $today)
             ->whereNull('clock_out')
             ->first();
 
         if (!$attendance) {
-            return response()->json(['message' => 'Anda belum melakukan clock in atau sudah clock out.'], 404);
+            return response()->json(['message' => 'Anda belum clock in atau sudah clock out.'], 400);
         }
 
         $attendance->update([
-            'clock_out' => Carbon::now(),
+            'clock_out' => now(),
             'clock_out_ip' => $request->ip(),
         ]);
 
-        return response()->json($attendance->load('shift'));
-    }
-
-    public function earlyDeparture(Request $request)
-    {
-        $request->validate(['notes' => 'required|string']);
-
-        $user = Auth::user();
-        $attendance = Attendance::where('user_id', $user->id)
-            ->whereDate('clock_in', Carbon::today())
-            ->whereNull('clock_out')
-            ->first();
-
-        if (!$attendance) {
-            return response()->json(['message' => 'Anda belum melakukan clock in hari ini.'], 404);
-        }
-
-        $attendance->update([
-            'clock_out' => Carbon::now(),
-            'clock_out_ip' => $request->ip(),
-            'notes' => $request->notes,
-            'status' => 'early_departure',
-        ]);
-
-        return response()->json($attendance->load('shift'));
+        return response()->json(['message' => 'Clock Out Berhasil', 'attendance' => $attendance]);
     }
 }

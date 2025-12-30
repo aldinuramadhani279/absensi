@@ -6,7 +6,6 @@ use App\Models\Attendance;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Carbon\Carbon;
 
 class AttendanceExport implements FromCollection, WithHeadings, WithMapping
 {
@@ -26,19 +25,20 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
     */
     public function collection()
     {
-        $query = Attendance::with(['user.profession', 'shift'])
-            ->whereHas('user', function ($q) {
-                if ($this->professionId) {
-                    $q->where('profession_id', $this->professionId);
-                }
+        $query = Attendance::with(['user.profession', 'shift']);
+
+        if ($this->professionId) {
+            $query->whereHas('user', function ($q) {
+                $q->where('profession_id', $this->professionId);
             });
+        }
 
         if ($this->startDate) {
-            $query->whereDate('clock_in', '>=', $this->startDate);
+            $query->whereDate('date', '>=', $this->startDate);
         }
 
         if ($this->endDate) {
-            $query->whereDate('clock_in', '<=', $this->endDate);
+            $query->whereDate('date', '<=', $this->endDate);
         }
 
         return $query->get();
@@ -47,30 +47,26 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-            'Name',
-            'Profession',
-            'Date',
-            'Clock In',
-            'Clock Out',
-            'Total Hours',
+            'Nama Karyawan',
+            'Jabatan',
+            'Shift',
+            'Tanggal',
+            'Jam Masuk',
+            'Jam Keluar',
             'Status',
-            'Notes',
+            'Catatan',
         ];
     }
 
     public function map($attendance): array
     {
-        $clockIn = Carbon::parse($attendance->clock_in);
-        $clockOut = $attendance->clock_out ? Carbon::parse($attendance->clock_out) : null;
-        $totalHours = $clockOut ? $clockIn->diffInHours($clockOut) : 'N/A';
-
         return [
             $attendance->user->name,
-            $attendance->user->profession->name ?? 'N/A',
-            $clockIn->format('Y-m-d'),
-            $clockIn->format('H:i:s'),
-            $clockOut ? $clockOut->format('H:i:s') : 'N/A',
-            $totalHours,
+            $attendance->user->profession->name ?? '-',
+            $attendance->shift->name ?? '-',
+            $attendance->date,
+            $attendance->clock_in,
+            $attendance->clock_out,
             $attendance->status,
             $attendance->notes,
         ];

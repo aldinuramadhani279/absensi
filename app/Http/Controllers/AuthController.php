@@ -13,33 +13,79 @@ class AuthController extends Controller
         return Inertia::render('Auth/Login');
     }
 
+    public function showRegister()
+    {
+        return Inertia::render('Auth/Register');
+    }
+
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
+            'login' => ['required'], // Changed from email to login
             'password' => ['required'],
         ]);
 
-        if (Auth::attempt($credentials)) {
+        $loginType = filter_var($request->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
+        // Attempt to log in
+        if (Auth::attempt([$loginType => $request->login, 'password' => $request->password])) {
             $request->session()->regenerate();
             
             $user = Auth::user();
             
-            // Check for force password change or admin status
+            // Check for force password change
             if ($user->must_change_password) {
                  return redirect()->intended('/password/force-change');
             }
             
-            if ($user->is_admin) { 
-                 return redirect()->intended('/admin');
+            // Admin Logic
+            if ($user->is_admin) {
+                // Admins MUST login via Email
+                if ($loginType !== 'email') {
+                    Auth::logout();
+                    $request->session()->invalidate();
+                    return back()->withErrors([
+                        'email' => 'Admin harus login menggunakan Email (@gmail.com).',
+                    ])->onlyInput('login');
+                }
+                return redirect()->intended('/admin');
+            } else {
+                // Employees MUST login via Username
+                if ($loginType !== 'username') {
+                    Auth::logout();
+                    $request->session()->invalidate();
+                    return back()->withErrors([
+                         'email' => 'Karyawan harus login menggunakan Username.',
+                    ])->onlyInput('login');
+                }
+                return redirect()->intended('/home');
             }
-
-            return redirect()->intended('/home');
         }
 
         return back()->withErrors([
-            'email' => 'The provided credentials do not match our records.',
-        ])->onlyInput('email');
+            'email' => 'Kredensial yang diberikan tidak cocok dengan data kami.',
+        ])->onlyInput('login');
+    }
+
+    public function register(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = \App\Models\User::create([
+            'name' => $validated['name'],
+            'username' => $validated['username'],
+            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'is_admin' => false,
+            'status' => 'non-pns', // Default status, can be adjusted
+        ]);
+
+        Auth::login($user);
+
+        return redirect('/home');
     }
 
     public function logout(Request $request)

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Head, router } from "@inertiajs/react" // Use Inertia router
+import { Head, router } from "@inertiajs/react"
 import { Button } from "@/Components/ui/button"
 import { Input } from "@/Components/ui/input"
 import { Label } from "@/Components/ui/label"
@@ -8,38 +8,39 @@ import { Alert, AlertDescription } from "@/Components/ui/alert"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import type React from "react"
 
-export default function LoginPage() {
-    const [login, setLogin] = useState("") // Changed from email to login
+export default function RegisterPage() {
+    const [name, setName] = useState("")
+    const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
+    const [passwordConfirmation, setPasswordConfirmation] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [errorLocal, setErrorLocal] = useState("")
 
-    // Simplified validation (optional, can be removed or adjusted)
-    const validateInput = (input: string) => {
-        return input.length > 0;
-    }
-
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
         setErrorLocal("")
-
-        if (!validateInput(login)) {
-            setErrorLocal("Username atau Email harus diisi")
-            return
-        }
 
         if (password.length < 8) {
             setErrorLocal("Password minimal 8 karakter")
             return
         }
 
+        if (password !== passwordConfirmation) {
+            setErrorLocal("Konfirmasi password tidak cocok")
+            return
+        }
+
         setIsLoading(true)
 
-        // Using Inertia's router to prevent full page reload and handle redirection server-side
-        router.post('/login', { login, password }, {
+        router.post('/register', {
+            name,
+            username,
+            password,
+            password_confirmation: passwordConfirmation
+        }, {
             onError: (errors: any) => {
-                setErrorLocal(errors.login || errors.email || errors.password || "Login gagal. Periksa kembali kredensial Anda.");
+                setErrorLocal(Object.values(errors)[0] as string || "Registrasi gagal.");
                 setIsLoading(false);
             },
             onFinish: () => setIsLoading(false)
@@ -48,14 +49,14 @@ export default function LoginPage() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4">
-            <Head title="Login" />
+            <Head title="Daftar Akun" />
             <Card className="w-full max-w-md shadow-xl border-0">
                 <CardHeader className="space-y-1 pb-6">
-                    <CardTitle className="text-2xl font-bold text-center">Selamat Datang</CardTitle>
-                    <CardDescription className="text-center text-base">Masuk ke Sistem Absensi Karyawan</CardDescription>
+                    <CardTitle className="text-2xl font-bold text-center">Buat Akun Baru</CardTitle>
+                    <CardDescription className="text-center text-base">Silakan isi data diri Anda</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleLogin} className="space-y-4">
+                    <form onSubmit={handleRegister} className="space-y-4">
                         {errorLocal && (
                             <Alert variant="destructive" className="bg-red-50 border-red-200">
                                 <AlertDescription className="text-red-800">{errorLocal}</AlertDescription>
@@ -63,15 +64,31 @@ export default function LoginPage() {
                         )}
 
                         <div className="space-y-2">
-                            <Label htmlFor="login" className="text-sm font-medium">
-                                Username / Email
+                            <Label htmlFor="name" className="text-sm font-medium">
+                                Nama Lengkap
                             </Label>
                             <Input
-                                id="login"
+                                id="name"
                                 type="text"
-                                placeholder="Username atau Email"
-                                value={login}
-                                onChange={(e) => setLogin(e.target.value)}
+                                placeholder="Nama Lengkap"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                disabled={isLoading}
+                                className="h-11"
+                                required
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="username" className="text-sm font-medium">
+                                Username
+                            </Label>
+                            <Input
+                                id="username"
+                                type="text"
+                                placeholder="Username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
                                 disabled={isLoading}
                                 className="h-11"
                                 required
@@ -86,7 +103,7 @@ export default function LoginPage() {
                                 <Input
                                     id="password"
                                     type={showPassword ? "text" : "password"}
-                                    placeholder="Masukkan kata sandi"
+                                    placeholder="minimal 8 karakter"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     disabled={isLoading}
@@ -104,6 +121,22 @@ export default function LoginPage() {
                             </div>
                         </div>
 
+                        <div className="space-y-2">
+                            <Label htmlFor="password_confirmation" className="text-sm font-medium">
+                                Konfirmasi Kata Sandi
+                            </Label>
+                            <Input
+                                id="password_confirmation"
+                                type="password"
+                                placeholder="Ulangi kata sandi"
+                                value={passwordConfirmation}
+                                onChange={(e) => setPasswordConfirmation(e.target.value)}
+                                disabled={isLoading}
+                                className="h-11"
+                                required
+                            />
+                        </div>
+
                         <Button
                             type="submit"
                             className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-medium"
@@ -112,20 +145,17 @@ export default function LoginPage() {
                             {isLoading ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Memproses...
+                                    Mendaftar...
                                 </>
                             ) : (
-                                "Masuk"
+                                "Daftar"
                             )}
                         </Button>
                     </form>
                 </CardContent>
-                <CardFooter className="flex flex-col gap-2 justify-center">
-                    <a href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700 hover:underline">
-                        Lupa Kata Sandi Anda?
-                    </a>
+                <CardFooter className="flex justify-center">
                     <div className="text-sm text-gray-600">
-                        Belum punya akun? <a href="/register" className="text-blue-600 hover:text-blue-700 hover:underline font-medium">Daftar sekarang</a>
+                        Sudah punya akun? <a href="/login" className="text-blue-600 hover:text-blue-700 hover:underline font-medium">Masuk disini</a>
                     </div>
                 </CardFooter>
             </Card>

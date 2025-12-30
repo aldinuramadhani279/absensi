@@ -30,6 +30,8 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
     const [password, setPassword] = useState("")
     const [passwordConfirmation, setPasswordConfirmation] = useState("")
     const [professionId, setProfessionId] = useState("")
+    const [status, setStatus] = useState("non-pns")
+    const [nip, setNip] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [errorLocal, setErrorLocal] = useState("")
@@ -53,6 +55,11 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
             return
         }
 
+        if (status === 'pns' && !nip) {
+            setErrorLocal("NIP wajib diisi untuk status PNS")
+            return
+        }
+
         setIsLoading(true)
 
         router.post('/register', {
@@ -60,7 +67,9 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
             username,
             password,
             password_confirmation: passwordConfirmation,
-            profession_id: professionId
+            profession_id: professionId,
+            status,
+            nip
         }, {
             onError: (errors: any) => {
                 setErrorLocal(Object.values(errors)[0] as string || "Registrasi gagal.");
@@ -119,6 +128,39 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="status" className="text-sm font-medium">
+                                Status Kepegawaian
+                            </Label>
+                            <Select onValueChange={setStatus} value={status} disabled={isLoading}>
+                                <SelectTrigger id="status" className="h-11">
+                                    <SelectValue placeholder="Pilih Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="non-pns">Non-PNS</SelectItem>
+                                    <SelectItem value="pns">PNS</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {status === 'pns' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="nip" className="text-sm font-medium">
+                                    NIP
+                                </Label>
+                                <Input
+                                    id="nip"
+                                    type="number"
+                                    placeholder="Nomor Induk Pegawai"
+                                    value={nip}
+                                    onChange={(e) => setNip(e.target.value)}
+                                    disabled={isLoading}
+                                    className="h-11"
+                                    required={status === 'pns'}
+                                />
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label htmlFor="username" className="text-sm font-medium">

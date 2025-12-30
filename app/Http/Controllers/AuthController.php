@@ -76,6 +76,10 @@ class AuthController extends Controller
             'username' => 'required|string|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'profession_id' => 'required|exists:professions,id',
+            'status' => 'required|in:pns,non-pns',
+            'nip' => 'required_if:status,pns|nullable|string|max:255',
+        ], [
+            'nip.required_if' => 'NIP wajib diisi untuk status PNS.',
         ]);
 
         $user = \App\Models\User::create([
@@ -83,8 +87,9 @@ class AuthController extends Controller
             'username' => $validated['username'],
             'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
             'profession_id' => $validated['profession_id'],
+            'status' => $validated['status'],
+            'nip' => $validated['nip'],
             'is_admin' => false,
-            'status' => 'non-pns', // Default status, can be adjusted
         ]);
 
         Auth::login($user);

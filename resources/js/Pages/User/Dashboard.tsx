@@ -29,6 +29,9 @@ interface User {
     id: number;
     name: string;
     email: string;
+    profession?: {
+        name: string;
+    }
 }
 
 // Props passed from Laravel
@@ -147,7 +150,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
             <main className="container mx-auto px-4 py-6 max-w-2xl">
                 <Card className="mb-6 shadow-sm text-center">
                     <CardHeader>
-                        <CardTitle className="text-2xl">Selamat Datang, {user.name}!</CardTitle>
+                        <CardTitle className="text-2xl">Selamat Datang, {user.name} {user.profession?.name ? `- ${user.profession.name}` : ''}!</CardTitle>
                         <CardDescription>
                             {new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
                         </CardDescription>

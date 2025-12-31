@@ -40,9 +40,11 @@ class AttendanceController extends Controller
         
         $attendance = Attendance::create([
             'user_id' => $user->id,
+            'date' => now()->toDateString(),
             'shift_id' => $request->shift_id,
             'clock_in' => now(),
             'status' => 'present',
+            'ip_address' => $request->ip(),
             'clock_in_ip' => $request->ip(),
         ]);
         

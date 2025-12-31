@@ -1,6 +1,6 @@
 import { Link, router, usePage } from "@inertiajs/react";
 import { Button } from "@/Components/ui/button";
-import { Bell, Home, Users, Briefcase, FileText, Settings, LogOut, Shield, Clock, MailQuestion } from "lucide-react";
+import { Bell, Home, Users, Briefcase, FileText, Settings, LogOut, Shield, Clock, MailQuestion, Plane } from "lucide-react";
 import { PropsWithChildren } from "react";
 
 export default function AdminLayout({ children }: PropsWithChildren) {
@@ -19,6 +19,7 @@ export default function AdminLayout({ children }: PropsWithChildren) {
         { href: "/admin/employees", label: "Karyawan", icon: Users },
         { href: "/admin/reports", label: "Laporan", icon: FileText },
         { href: "/admin/leave-requests", label: "Manajemen Cuti", icon: MailQuestion },
+        { href: "/admin/travel-requests", label: "Dinas Luar Kota", icon: Plane },
     ];
 
     return (
@@ -39,8 +40,8 @@ export default function AdminLayout({ children }: PropsWithChildren) {
                             key={item.href}
                             href={item.href}
                             className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${(item.exact ? url === item.href : url.startsWith(item.href))
-                                    ? "bg-blue-600 text-white shadow-sm"
-                                    : "text-slate-400 hover:text-white hover:bg-slate-800"
+                                ? "bg-blue-600 text-white shadow-sm"
+                                : "text-slate-400 hover:text-white hover:bg-slate-800"
                                 }`}
                         >
                             <item.icon className="h-4 w-4" />

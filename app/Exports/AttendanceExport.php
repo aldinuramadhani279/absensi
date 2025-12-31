@@ -25,6 +25,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
     */
     public function collection()
     {
+        // 1. Get Attendances
         $query = Attendance::with(['user.profession', 'shift']);
 
         if ($this->professionId) {
@@ -41,7 +42,61 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
             $query->whereDate('date', '<=', $this->endDate);
         }
 
-        return $query->get();
+        $attendances = $query->get();
+
+        // 2. Get Travel Requests (Dinas)
+        $trQuery = \App\Models\TravelRequest::where('status', 'approved')->with('user.profession');
+
+        // Filter by profession if needed (indirectly via user)
+        if ($this->professionId) {
+             $trQuery->whereHas('user', function ($q) {
+                $q->where('profession_id', $this->professionId);
+            });
+        }
+
+        if ($this->startDate) {
+            $trQuery->where('end_date', '>=', $this->startDate);
+        }
+
+        if ($this->endDate) {
+            $trQuery->where('start_date', '<=', $this->endDate);
+        }
+
+        $travelRequests = $trQuery->get();
+
+        // 3. Expand Travel Requests into daily "Attendance-like" objects
+        $dinasRows = collect();
+        foreach ($travelRequests as $tr) {
+            // using Carbon to iterate
+            $start = \Carbon\Carbon::parse($tr->start_date);
+            $end = \Carbon\Carbon::parse($tr->end_date);
+            
+            // Adjust start/end to fit within report range if needed
+            $reportStart = $this->startDate ? \Carbon\Carbon::parse($this->startDate) : $start;
+            $reportEnd = $this->endDate ? \Carbon\Carbon::parse($this->endDate) : $end;
+
+            // Iterate
+            $current = $start->copy();
+            while ($current->lte($end)) {
+                // Only include if within report range
+                if ($current->gte($reportStart) && $current->lte($reportEnd)) {
+                    $dummy = new Attendance();
+                    $dummy->user = $tr->user; // Manually assign relation
+                    $dummy->date = $current->format('Y-m-d');
+                    $dummy->clock_in = '-';
+                    $dummy->clock_out = '-';
+                    $dummy->status = 'Dinas Luar Kota';
+                    $dummy->notes = $tr->reason;
+                    // We can't easily assign shift unless we look it up, leave as null
+                    
+                    $dinasRows->push($dummy);
+                }
+                $current->addDay();
+            }
+        }
+
+        // Merge and sort
+        return $attendances->merge($dinasRows)->sortByDesc('date');
     }
 
     public function headings(): array

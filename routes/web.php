@@ -24,6 +24,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/leave-requests', [App\Http\Controllers\LeaveRequestController::class, 'index'])->name('leave-requests.index');
     Route::post('/leave-requests', [App\Http\Controllers\LeaveRequestController::class, 'store'])->name('leave-requests.store');
     
+    Route::get('/travel-requests', [App\Http\Controllers\TravelRequestController::class, 'index'])->name('travel-requests.index');
+    Route::post('/travel-requests', [App\Http\Controllers\TravelRequestController::class, 'store'])->name('travel-requests.store');
+    
     // Add admin middleware check here later
     Route::get('/admin', [AdminController::class, 'index'])->name('admin.dashboard');
 });
@@ -58,6 +61,9 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 
     Route::get('leave-requests', [App\Http\Controllers\AdminLeaveRequestController::class, 'index'])->name('admin.leave-requests.index');
     Route::patch('leave-requests/{leaveRequest}', [App\Http\Controllers\AdminLeaveRequestController::class, 'update'])->name('admin.leave-requests.update');
+    
+    Route::get('travel-requests', [App\Http\Controllers\AdminTravelRequestController::class, 'index'])->name('admin.travel-requests.index');
+    Route::patch('travel-requests/{travelRequest}', [App\Http\Controllers\AdminTravelRequestController::class, 'update'])->name('admin.travel-requests.update');
     
     Route::get('reports', [App\Http\Controllers\ReportController::class, 'index'])->name('admin.reports.index');
     Route::get('reports/export', [App\Http\Controllers\ReportController::class, 'export'])->name('admin.reports.export');

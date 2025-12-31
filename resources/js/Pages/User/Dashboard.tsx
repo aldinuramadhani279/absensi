@@ -1,13 +1,13 @@
 import { useState } from "react"
-import { Head, router, usePage } from "@inertiajs/react"
+import { Head, router } from "@inertiajs/react"
 import { Button } from "@/Components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/Components/ui/card"
 import { Alert, AlertDescription } from "@/Components/ui/alert"
-import { Clock, LogOut, Clock3, Clock9, CheckCircle2, Loader2, History, FilePlus, Key, AlertCircle, XCircle, Frown, Smile, ThumbsUp } from "lucide-react"
+import { Clock, LogOut, Clock3, Clock9, CheckCircle2, Loader2, History, FilePlus, Key, Frown, Smile, ThumbsUp } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { Label } from "@/Components/ui/label"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/Components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/Components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/Components/ui/alert-dialog"
 import axios from "axios"
 
@@ -217,9 +217,10 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <a href="/history"><Button variant="outline" className="w-full gap-2"><History className="h-4 w-4" />Riwayat Absensi</Button></a>
                     <a href="/leave-requests"><Button variant="outline" className="w-full gap-2"><FilePlus className="h-4 w-4" />Ajukan Cuti</Button></a>
+                    <a href="/travel-requests"><Button variant="outline" className="w-full gap-2"><FilePlus className="h-4 w-4" />Dinas Luar Kota</Button></a>
                     <Dialog>
                         <DialogTrigger asChild><Button variant="outline" className="w-full gap-2"><Key className="h-4 w-4" />Reset Password</Button></DialogTrigger>
                         <DialogContent>

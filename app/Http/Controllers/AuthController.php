@@ -35,6 +35,28 @@ class AuthController extends Controller
             
             $user = Auth::user();
             
+            // Link IP Logic: 1 Device 1 Account per Day
+            $today = \Carbon\Carbon::today();
+            $clientIp = $request->ip();
+
+            // Find if any OTHER user has attended from this IP today
+            $existingAttendanceFromIp = \App\Models\Attendance::where('ip_address', $clientIp)
+                ->whereDate('created_at', $today)
+                ->where('user_id', '!=', $user->id) // Different user
+                ->first();
+
+            if ($existingAttendanceFromIp) {
+                // Get the name of the user who used this IP
+                $otherUser = $existingAttendanceFromIp->user;
+                $otherUserName = $otherUser ? $otherUser->name : 'Pengguna Lain';
+
+                Auth::logout();
+                $request->session()->invalidate();
+                return back()->withErrors([
+                    'login' => "Maaf, perangkat ini sudah digunakan oleh $otherUserName untuk absensi hari ini. Satu perangkat hanya boleh digunakan oleh satu akun.",
+                ])->onlyInput('login');
+            }
+            
             // Check for force password change
             if ($user->must_change_password) {
                  return redirect()->intended('/password/force-change');

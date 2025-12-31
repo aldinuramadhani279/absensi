@@ -90,7 +90,7 @@ export default function AdminTravelRequests({ requests }: AdminTravelRequestsPro
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {requests.length === 0 ? (
+                                {(requests || []).length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                                             Tidak ada data.

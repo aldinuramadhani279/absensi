@@ -34,8 +34,19 @@ class AttendanceController extends Controller
             ->exists();
 
         if ($forgotOut) {
-            // Logic can vary here, maybe block or allow with warning. 
-            // For now, let's allow but maybe the frontend shows a warning (which it does).
+            // Logic can vary here
+        }
+        
+        // IP Restriction: Double check at Clock In moment
+        $clientIp = $request->ip();
+        $existingAttendanceFromIp = Attendance::where('ip_address', $clientIp)
+            ->whereDate('created_at', $today)
+            ->where('user_id', '!=', $user->id) 
+            ->first();
+
+        if ($existingAttendanceFromIp) {
+            $otherUser = $existingAttendanceFromIp->user->name ?? 'Pengguna Lain';
+            return response()->json(['message' => "IP ini sudah digunakan oleh $otherUser hari ini. 1 Perangkat 1 Akun."], 403);
         }
         
         $attendance = Attendance::create([

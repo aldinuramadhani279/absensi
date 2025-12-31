@@ -89,7 +89,7 @@ export default function TravelRequestsIndex({ requests }: TravelRequestsProps) {
                                 <Button onClick={() => setIsCreating(true)}><Plus className="mr-2 h-4 w-4" /> Buat Pengajuan</Button>
                             </CardHeader>
                             <CardContent>
-                                {requests.length === 0 ? (
+                                {(requests || []).length === 0 ? (
                                     <p className="text-center text-muted-foreground py-8">Belum ada pengajuan dinas.</p>
                                 ) : (
                                     <div className="space-y-4">

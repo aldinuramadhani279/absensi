@@ -13,37 +13,39 @@ class ReportController extends Controller
 {
     public function index(Request $request)
     {
-        $professions = Profession::all();
+        $professions = Profession::all() ?? []; // Ensure not null
         
-        $attendances = [];
-        
-        // If filters are present, load data, otherwise empty or load latest
-        if ($request->hasAny(['profession_id', 'start_date', 'end_date'])) {
-            $query = Attendance::with(['user.profession', 'shift'])
-                ->orderBy('date', 'desc')
-                ->orderBy('clock_in', 'desc');
+        $attendances = []; // Default empty array
 
-            if ($request->filled('profession_id')) {
-                $query->whereHas('user', function ($q) use ($request) {
-                    $q->where('profession_id', $request->profession_id);
-                });
-            }
+        $query = Attendance::with(['user.profession', 'shift']) // Eager load
+            ->orderBy('created_at', 'desc');
 
-            if ($request->filled('start_date')) {
-                $query->whereDate('date', '>=', $request->start_date);
-            }
+        // Apply filters
+        if ($request->filled('profession_id') && $request->profession_id !== 'all') {
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->where('profession_id', $request->profession_id);
+            });
+        }
 
-            if ($request->filled('end_date')) {
-                $query->whereDate('date', '<=', $request->end_date);
-            }
-            
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        // Limit to 50 if no filter to prevent overload, or get all if filtered
+        if (!$request->hasAny(['profession_id', 'start_date', 'end_date'])) {
+            $attendances = $query->take(50)->get();
+        } else {
             $attendances = $query->get();
         }
 
         return Inertia::render('Admin/Reports/Index', [
             'professions' => $professions,
             'attendances' => $attendances,
-            'filters' => $request->only(['profession_id', 'start_date', 'end_date'])
+            'filters' => $request->only(['profession_id', 'start_date', 'end_date']) ?? [], // Ensure not null
         ]);
     }
 

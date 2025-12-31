@@ -114,9 +114,9 @@ class AuthController extends Controller
             'is_admin' => false,
         ]);
 
-        Auth::login($user);
-
-        return redirect('/home');
+        // Auth::login($user); // Disable auto-login to enforce IP check on login
+        
+        return redirect('/login')->with('success', 'Registrasi berhasil! Silakan login.');
     }
 
     public function logout(Request $request)

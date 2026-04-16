@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button } from "@/Components/ui/button";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/Com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/Components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserPlus, Trash2, KeyRound } from 'lucide-react';
+import { Loader2, UserPlus, Trash2, KeyRound, Search, Filter } from 'lucide-react';
 import { Label } from "@/Components/ui/label";
 
 interface Profession {
@@ -42,6 +42,23 @@ export default function EmployeesIndex({ employees, professions }: { employees: 
     const [showConfirmDelete, setShowConfirmDelete] = useState<User | null>(null);
     const [showConfirmReset, setShowConfirmReset] = useState<User | null>(null);
     const [isProcessingAction, setIsProcessingAction] = useState(false);
+
+    // Filter states
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterProfession, setFilterProfession] = useState<string>('all');
+
+    // Filtered employees
+    const filteredEmployees = useMemo(() => {
+        return employees.filter(emp => {
+            const matchSearch = searchQuery === '' ||
+                emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (emp.email && emp.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                (emp.nip && emp.nip.includes(searchQuery)) ||
+                (emp.employee_id && emp.employee_id.includes(searchQuery));
+            const matchProfession = filterProfession === 'all' || String(emp.profession?.id) === filterProfession;
+            return matchSearch && matchProfession;
+        });
+    }, [employees, searchQuery, filterProfession]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -177,8 +194,40 @@ export default function EmployeesIndex({ employees, professions }: { employees: 
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Daftar Karyawan</CardTitle>
-                        <CardDescription>Total {employees.length} karyawan terdaftar di sistem.</CardDescription>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <CardTitle>Daftar Karyawan</CardTitle>
+                                <CardDescription className="mt-1">
+                                    Menampilkan <strong>{filteredEmployees.length}</strong> dari {employees.length} karyawan terdaftar.
+                                </CardDescription>
+                            </div>
+                            {/* Filter & Search */}
+                            <div className="flex items-center gap-2">
+                                <div className="relative">
+                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Cari nama, email, NIP..."
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                        className="pl-8 w-52"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <Select value={filterProfession} onValueChange={setFilterProfession}>
+                                        <SelectTrigger className="w-44">
+                                            <SelectValue placeholder="Semua Jabatan" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Semua Jabatan</SelectItem>
+                                            {professions.map(p => (
+                                                <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -191,7 +240,7 @@ export default function EmployeesIndex({ employees, professions }: { employees: 
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {employees.length > 0 ? employees.map(emp => (
+                                {filteredEmployees.length > 0 ? filteredEmployees.map(emp => (
                                     <TableRow key={emp.id}>
                                         <TableCell>
                                             <div className='font-medium'>{emp.name}</div>
@@ -205,7 +254,11 @@ export default function EmployeesIndex({ employees, professions }: { employees: 
                                                 <span className="text-sm text-muted-foreground">{emp.nip || emp.employee_id || '-'}</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{emp.profession?.name || '-'}</TableCell>
+                                        <TableCell>
+                                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded">
+                                                {emp.profession?.name || '-'}
+                                            </span>
+                                        </TableCell>
                                         <TableCell className='text-right space-x-2'>
                                             <Button variant="outline" size="sm" onClick={() => setShowConfirmReset(emp)} title="Reset Password">
                                                 <KeyRound className="h-3.5 w-3.5" />
@@ -216,7 +269,14 @@ export default function EmployeesIndex({ employees, professions }: { employees: 
                                         </TableCell>
                                     </TableRow>
                                 )) : (
-                                    <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Tidak ada data karyawan.</TableCell></TableRow>
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
+                                            {searchQuery || filterProfession !== 'all'
+                                                ? 'Tidak ada karyawan yang cocok dengan filter.'
+                                                : 'Tidak ada data karyawan.'
+                                            }
+                                        </TableCell>
+                                    </TableRow>
                                 )}
                             </TableBody>
                         </Table>

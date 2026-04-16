@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Head, usePage } from "@inertiajs/react"
+import { Head, usePage, router } from "@inertiajs/react"
 import { Button } from "@/Components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/Components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/Components/ui/table"
@@ -82,7 +82,21 @@ export default function AdminDashboard({ requests: initialRequests }: { requests
         <AdminLayout>
             <Head title="Admin Dashboard" />
             <div>
-                <h1 className="text-3xl font-bold mb-6 text-slate-900">Dashboard Overview</h1>
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-3xl font-bold text-slate-900">Dashboard Overview</h1>
+                    <Button 
+                        onClick={async () => {
+                            if(confirm('Anda yakin ingin menghapus semua foto absensi yang usianya lebih dari 24 jam?')) {
+                                router.post('/admin/prune-photos');
+                            }
+                        }} 
+                        variant="destructive" 
+                        className="gap-2"
+                    >
+                        <AlertCircle className="h-4 w-4" />
+                        Hapus Foto (+24 Jam)
+                    </Button>
+                </div>
                 {/* Stats Cards */}
                 <div className="grid gap-4 md:grid-cols-3 mb-6">
 

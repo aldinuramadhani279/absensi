@@ -1,6 +1,6 @@
 import { Link, router, usePage } from "@inertiajs/react";
 import { Button } from "@/Components/ui/button";
-import { Bell, Home, Users, Briefcase, FileText, Settings, LogOut, Shield, Clock, MailQuestion, Plane } from "lucide-react";
+import { Bell, Home, Users, Briefcase, FileText, Settings, LogOut, Shield, Clock, MailQuestion, Plane, AlertTriangle } from "lucide-react";
 import { PropsWithChildren } from "react";
 
 export default function AdminLayout({ children }: PropsWithChildren) {
@@ -20,10 +20,11 @@ export default function AdminLayout({ children }: PropsWithChildren) {
         { href: "/admin/reports", label: "Laporan", icon: FileText },
         { href: "/admin/leave-requests", label: "Manajemen Cuti", icon: MailQuestion },
         { href: "/admin/travel-requests", label: "Dinas Luar Kota", icon: Plane },
+        { href: "/admin/whistleblowing", label: "Whistleblowing", icon: AlertTriangle },
     ];
 
     return (
-        <div className="min-h-screen w-full flex bg-gray-50">
+        <div className="min-h-screen w-full flex">
             {/* Sidebar */}
             <aside className="w-64 bg-slate-900 text-white flex-col flex-shrink-0 hidden md:flex">
                 <div className="h-16 flex items-center px-6 border-b border-slate-800">

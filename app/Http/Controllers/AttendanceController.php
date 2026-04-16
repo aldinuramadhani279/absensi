@@ -4,15 +4,41 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use App\Models\Attendance;
 use App\Models\Shift;
 
 class AttendanceController extends Controller
 {
+    // Fitur Geofencing dan Radius dihapus atas permintaan pengguna
+
+    /**
+     * Simpan gambar base64 ke storage publik
+     */
+    private function saveBase64Image($base64String, $prefix)
+    {
+        // Pisahkan data URI dari data base64 (format: data:image/png;base64,.....)
+        @list($type, $file_data) = explode(';', $base64String);
+        @list(, $file_data) = explode(',', $file_data);
+
+        // Dekode base64 menjadi file binary
+        $image = base64_decode($file_data);
+
+        // Tentukan nama file unik
+        $imageName = $prefix . '_' . time() . '_' . Str::random(10) . '.png';
+
+        // Simpan menggunakan disk 'public' (folder: storage/app/public/attendances)
+        Storage::disk('public')->put('attendances/' . $imageName, $image);
+
+        return 'attendances/' . $imageName;
+    }
+
     public function clockIn(Request $request)
     {
         $request->validate([
             'shift_id' => 'required|exists:shifts,id',
+            'photo' => 'required|string', // base64 string
         ]);
 
         $user = Auth::user();
@@ -27,17 +53,7 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Anda sudah melakukan clock in hari ini.'], 400);
         }
 
-        // Check for unresolved previous attendance (forgot clock out)
-        $forgotOut = Attendance::where('user_id', $user->id)
-            ->whereNull('clock_out')
-            ->whereDate('created_at', '<', $today)
-            ->exists();
-
-        if ($forgotOut) {
-            // Logic can vary here
-        }
-        
-        // IP Restriction: Double check at Clock In moment
+        // IP Restriction
         $clientIp = $request->ip();
         $existingAttendanceFromIp = Attendance::where('ip_address', $clientIp)
             ->whereDate('created_at', $today)
@@ -49,6 +65,9 @@ class AttendanceController extends Controller
             return response()->json(['message' => "IP ini sudah digunakan oleh $otherUser hari ini. 1 Perangkat 1 Akun."], 403);
         }
         
+        // Simpan Foto
+        $photoPath = $this->saveBase64Image($request->photo, 'in_' . $user->id);
+
         $attendance = Attendance::create([
             'user_id' => $user->id,
             'date' => now()->toDateString(),
@@ -57,32 +76,26 @@ class AttendanceController extends Controller
             'status' => 'present',
             'ip_address' => $request->ip(),
             'clock_in_ip' => $request->ip(),
+            'photo_in' => $photoPath,
+            'lat_in' => $request->latitude ?? null,
+            'lon_in' => $request->longitude ?? null,
         ]);
         
-        // Determine status based on shift time and simple 10m tolerance
+        // Hitung Keterlambatan
         $shift = Shift::find($request->shift_id);
         $statusMessage = 'Tepat Waktu';
         $status = 'tepat waktu';
-        $statusCode = 'ontime'; // early, ontime, late
+        $statusCode = 'ontime'; 
         $timeDiffMessage = '';
         
         if ($shift) {
-            // Shift start time from DB is usually H:i:s string
             $shiftStartPart = \Carbon\Carbon::parse($shift->start_time);
-            
-            // Create Carbon instance for Today at Shift Start Time
             $shiftStart = now()->setTime($shiftStartPart->hour, $shiftStartPart->minute, $shiftStartPart->second);
-            
-            // The actual clock-in time
             $clockInTime = now();
-            
-            // Tolerance in minutes
             $tolerance = 10; 
             
-            // Check if Late
             if ($clockInTime->gt($shiftStart)) {
                 $minsLate = $clockInTime->diffInMinutes($shiftStart);
-                
                 if ($minsLate > $tolerance) {
                     $status = 'terlambat';
                     $statusCode = 'late';
@@ -91,25 +104,21 @@ class AttendanceController extends Controller
                     $statusMessage = 'Anda Terlambat';
                     $timeDiffMessage = $hours > 0 ? "{$hours} jam {$mins} menit" : "{$mins} menit";
                 } else {
-                    // Within 10 mins tolerance after start
                     $status = 'tepat waktu';
                     $statusCode = 'ontime';
                     $statusMessage = 'Anda Tepat Waktu (Dalam Toleransi)';
                     $timeDiffMessage = "Lewat {$minsLate} menit (masih toleransi)";
                 }
             } else {
-                // Early (Before start)
                 $minsEarly = $shiftStart->diffInMinutes($clockInTime);
-                
                 if ($minsEarly > $tolerance) {
-                    $status = 'lebih awal'; // or 'tepat waktu' if you don't track early separately in DB
+                    $status = 'tepat waktu';
                     $statusCode = 'early';
                     $hours = intdiv($minsEarly, 60);
                     $mins = $minsEarly % 60;
                     $statusMessage = 'Anda Masuk Lebih Awal';
                     $timeDiffMessage = $hours > 0 ? "{$hours} jam {$mins} menit" : "{$mins} menit";
                 } else {
-                    // Within 10 mins before start
                     $status = 'tepat waktu';
                     $statusCode = 'ontime';
                     $statusMessage = 'Anda Tepat Waktu';
@@ -117,12 +126,7 @@ class AttendanceController extends Controller
                 }
             }
             
-            // Update the attendance record with the determined status
-            $attendance->update([
-                'status' => $status
-            ]);
-            
-            // Re-fetch to ensure object is sync
+            $attendance->update(['status' => $status]);
             $attendance->refresh();
         }
 
@@ -137,9 +141,13 @@ class AttendanceController extends Controller
 
     public function clockOut(Request $request)
     {
-        $user = Auth::user();
-        $today = now()->today();
+        $request->validate([
+            'photo' => 'required|string', // base64 string
+        ]);
 
+        $user = Auth::user();
+
+        $today = now()->today();
         $attendance = Attendance::where('user_id', $user->id)
             ->whereDate('created_at', $today)
             ->whereNull('clock_out')
@@ -148,10 +156,16 @@ class AttendanceController extends Controller
         if (!$attendance) {
             return response()->json(['message' => 'Anda belum clock in atau sudah clock out.'], 400);
         }
+        
+        // Simpan Foto
+        $photoPath = $this->saveBase64Image($request->photo, 'out_' . $user->id);
 
         $attendance->update([
             'clock_out' => now(),
             'clock_out_ip' => $request->ip(),
+            'photo_out' => $photoPath,
+            'lat_out' => $request->latitude ?? null,
+            'lon_out' => $request->longitude ?? null,
         ]);
 
         return response()->json(['message' => 'Clock Out Berhasil', 'attendance' => $attendance]);

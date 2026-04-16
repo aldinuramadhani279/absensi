@@ -27,6 +27,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/travel-requests', [App\Http\Controllers\TravelRequestController::class, 'index'])->name('travel-requests.index');
     Route::post('/travel-requests', [App\Http\Controllers\TravelRequestController::class, 'store'])->name('travel-requests.store');
     
+    Route::post('/whistleblowing', [\App\Http\Controllers\WhistleblowingController::class, 'store'])->name('whistleblowing.store');
+
     // Add admin middleware check here later
     Route::get('/admin', [AdminController::class, 'index'])->name('admin.dashboard');
 });
@@ -52,6 +54,8 @@ Route::prefix('api')->group(function () {
 
 
 Route::middleware(['auth'])->prefix('admin')->group(function () { 
+    Route::post('prune-photos', [\App\Http\Controllers\AdminController::class, 'prunePhotos'])->name('admin.prune-photos');
+
     // Resource routes for master data
     Route::resource('professions', App\Http\Controllers\ProfessionController::class)->except(['create', 'edit', 'show', 'update']);
     Route::resource('shifts', App\Http\Controllers\ShiftController::class)->except(['create', 'edit', 'show', 'update']);
@@ -64,6 +68,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     
     Route::get('travel-requests', [App\Http\Controllers\AdminTravelRequestController::class, 'index'])->name('admin.travel-requests.index');
     Route::patch('travel-requests/{travelRequest}', [App\Http\Controllers\AdminTravelRequestController::class, 'update'])->name('admin.travel-requests.update');
+    
+    Route::get('whistleblowing', [App\Http\Controllers\WhistleblowingController::class, 'index'])->name('admin.whistleblowing.index');
     
     Route::get('reports', [App\Http\Controllers\ReportController::class, 'index'])->name('admin.reports.index');
     Route::get('reports/export', [App\Http\Controllers\ReportController::class, 'export'])->name('admin.reports.export');

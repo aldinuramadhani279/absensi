@@ -18,6 +18,12 @@ class Attendance extends Model
         'clock_out_ip',
         'status',
         'notes',
+        'photo_in',
+        'lat_in',
+        'lon_in',
+        'photo_out',
+        'lat_out',
+        'lon_out',
     ];
 
     public function user()

@@ -68,4 +68,25 @@ class AdminController extends Controller
         
         return response()->json(['message' => 'Success']);
     }
+
+    public function prunePhotos()
+    {
+        $attendances = \App\Models\Attendance::where('created_at', '<', now()->subHours(24))->get();
+        $count = 0;
+        foreach ($attendances as $a) {
+            if ($a->photo_in && \Illuminate\Support\Facades\Storage::disk('public')->exists($a->photo_in)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($a->photo_in);
+                $a->photo_in = null;
+                $count++;
+            }
+            if ($a->photo_out && \Illuminate\Support\Facades\Storage::disk('public')->exists($a->photo_out)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($a->photo_out);
+                $a->photo_out = null;
+                $count++;
+            }
+            $a->save();
+        }
+
+        return redirect()->back()->with('message', "Berhasil menghapus {$count} foto absensi yang usianya lebih dari 24 jam.");
+    }
 }

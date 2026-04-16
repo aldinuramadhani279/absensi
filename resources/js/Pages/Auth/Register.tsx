@@ -26,7 +26,7 @@ interface RegisterPageProps {
 
 export default function RegisterPage({ professions }: RegisterPageProps) {
     const [name, setName] = useState("")
-    const [username, setUsername] = useState("")
+    const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [passwordConfirmation, setPasswordConfirmation] = useState("")
     const [professionId, setProfessionId] = useState("")
@@ -64,7 +64,7 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
 
         router.post('/register', {
             name,
-            username,
+            email,
             password,
             password_confirmation: passwordConfirmation,
             profession_id: professionId,
@@ -163,15 +163,15 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
                         )}
 
                         <div className="space-y-2">
-                            <Label htmlFor="username" className="text-sm font-medium">
-                                Username
+                            <Label htmlFor="email" className="text-sm font-medium">
+                                Email
                             </Label>
                             <Input
-                                id="username"
-                                type="text"
-                                placeholder="Username"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                id="email"
+                                type="email"
+                                placeholder="Email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}
                                 className="h-11"
                                 required

@@ -23,14 +23,12 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'login' => ['required'], // Changed from email to login
+            'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-        $loginType = filter_var($request->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
-
         // Attempt to log in
-        if (Auth::attempt([$loginType => $request->login, 'password' => $request->password])) {
+        if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
             $request->session()->regenerate();
             
             $user = Auth::user();
@@ -53,8 +51,8 @@ class AuthController extends Controller
                 Auth::logout();
                 $request->session()->invalidate();
                 return back()->withErrors([
-                    'login' => "Maaf, perangkat ini sudah digunakan oleh $otherUserName untuk absensi hari ini. Satu perangkat hanya boleh digunakan oleh satu akun.",
-                ])->onlyInput('login');
+                    'email' => "Maaf, perangkat ini sudah digunakan oleh $otherUserName untuk absensi hari ini. Satu perangkat hanya boleh digunakan oleh satu akun.",
+                ])->onlyInput('email');
             }
             
             // Check for force password change
@@ -64,38 +62,22 @@ class AuthController extends Controller
             
             // Admin Logic
             if ($user->is_admin) {
-                // Admins MUST login via Email
-                if ($loginType !== 'email') {
-                    Auth::logout();
-                    $request->session()->invalidate();
-                    return back()->withErrors([
-                        'email' => 'Admin harus login menggunakan Email (@gmail.com).',
-                    ])->onlyInput('login');
-                }
                 return redirect()->intended('/admin');
             } else {
-                // Employees MUST login via Username
-                if ($loginType !== 'username') {
-                    Auth::logout();
-                    $request->session()->invalidate();
-                    return back()->withErrors([
-                         'email' => 'Karyawan harus login menggunakan Username.',
-                    ])->onlyInput('login');
-                }
                 return redirect()->intended('/home');
             }
         }
 
         return back()->withErrors([
             'email' => 'Kredensial yang diberikan tidak cocok dengan data kami.',
-        ])->onlyInput('login');
+        ])->onlyInput('email');
     }
 
     public function register(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'profession_id' => 'required|exists:professions,id',
             'status' => 'required|in:pns,non-pns',
@@ -106,7 +88,7 @@ class AuthController extends Controller
 
         $user = \App\Models\User::create([
             'name' => $validated['name'],
-            'username' => $validated['username'],
+            'email' => $validated['email'],
             'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
             'profession_id' => $validated['profession_id'],
             'status' => $validated['status'],

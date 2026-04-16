@@ -20,7 +20,7 @@ class UserSeeder extends Seeder
         if ($profession) {
             User::create([
                 'name' => 'Admin',
-                'email' => 'admin@example.com',
+                'email' => 'tuud@gmail.com',
                 'password' => Hash::make('password'),
                 'status' => 'pns',
                 'is_admin' => true,

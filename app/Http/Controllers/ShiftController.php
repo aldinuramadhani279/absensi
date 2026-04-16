@@ -14,7 +14,10 @@ class ShiftController extends Controller
      */
     public function index()
     {
-        $shifts = Shift::with('profession')->orderBy('created_at', 'desc')->get();
+        $shifts = Shift::with('profession')
+            ->orderBy('profession_id')
+            ->orderBy('start_time')
+            ->get();
         $professions = Profession::all();
         
         return Inertia::render('Admin/Shifts/Index', [
@@ -25,19 +28,28 @@ class ShiftController extends Controller
 
     /**
      * Store a newly created resource in storage.
+     * Supports bulk creation for multiple profession_ids at once.
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'profession_id' => 'required|exists:professions,id',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i',
+            'name'           => 'required|string|max:255',
+            'profession_ids' => 'required|array|min:1',
+            'profession_ids.*' => 'exists:professions,id',
+            'start_time'     => 'required|date_format:H:i',
+            'end_time'       => 'required|date_format:H:i',
         ]);
 
-        Shift::create($validated);
+        foreach ($validated['profession_ids'] as $professionId) {
+            Shift::create([
+                'name'          => $validated['name'],
+                'profession_id' => $professionId,
+                'start_time'    => $validated['start_time'],
+                'end_time'      => $validated['end_time'],
+            ]);
+        }
 
-        return redirect()->back()->with('success', 'Shift berhasil ditambahkan.');
+        return redirect()->back()->with('success', 'Shift berhasil ditambahkan ke ' . count($validated['profession_ids']) . ' jabatan.');
     }
 
     /**

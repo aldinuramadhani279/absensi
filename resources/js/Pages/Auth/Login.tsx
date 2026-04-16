@@ -9,7 +9,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react"
 import type React from "react"
 
 export default function LoginPage() {
-    const [login, setLogin] = useState("") // Changed from email to login
+    const [email, setEmail] = useState("") 
     const [password, setPassword] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
@@ -24,8 +24,8 @@ export default function LoginPage() {
         e.preventDefault()
         setErrorLocal("")
 
-        if (!validateInput(login)) {
-            setErrorLocal("Username atau Email harus diisi")
+        if (!validateInput(email)) {
+            setErrorLocal("Email harus diisi")
             return
         }
 
@@ -37,9 +37,9 @@ export default function LoginPage() {
         setIsLoading(true)
 
         // Using Inertia's router to prevent full page reload and handle redirection server-side
-        router.post('/login', { login, password }, {
+        router.post('/login', { email, password }, {
             onError: (errors: any) => {
-                setErrorLocal(errors.login || errors.email || errors.password || "Login gagal. Periksa kembali kredensial Anda.");
+                setErrorLocal(errors.email || errors.password || "Login gagal. Periksa kembali kredensial Anda.");
                 setIsLoading(false);
             },
             onFinish: () => setIsLoading(false)
@@ -47,7 +47,7 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4">
+        <div className="min-h-screen flex items-center justify-center p-4">
             <Head title="Login" />
             <Card className="w-full max-w-md shadow-xl border-0">
                 <CardHeader className="space-y-1 pb-6">
@@ -63,15 +63,15 @@ export default function LoginPage() {
                         )}
 
                         <div className="space-y-2">
-                            <Label htmlFor="login" className="text-sm font-medium">
-                                Username / Email
+                            <Label htmlFor="email" className="text-sm font-medium">
+                                Email
                             </Label>
                             <Input
-                                id="login"
-                                type="text"
-                                placeholder="Username atau Email"
-                                value={login}
-                                onChange={(e) => setLogin(e.target.value)}
+                                id="email"
+                                type="email"
+                                placeholder="Email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}
                                 className="h-11"
                                 required

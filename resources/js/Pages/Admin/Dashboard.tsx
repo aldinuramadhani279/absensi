@@ -13,7 +13,7 @@ import {
 } from "@/Components/ui/dialog"
 import { Badge } from "@/Components/ui/badge"
 import { Alert, AlertDescription } from "@/Components/ui/alert"
-import { CheckCircle2, Clock, Loader2, AlertCircle, ShieldAlert, ShieldCheck, Wifi } from "lucide-react"
+import { CheckCircle2, Clock, Loader2, AlertCircle, ShieldAlert, ShieldCheck, Wifi, Eye, Image as ImageIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import axios from "axios" // Using axios for API calls remaining within the page
 import AdminLayout from "@/Layouts/AdminLayout"
@@ -31,6 +31,7 @@ interface PasswordResetRequest {
 interface DuplicateIpUser {
     name: string
     time: string
+    photo_in?: string | null
 }
 
 interface DuplicateIpAlert {
@@ -55,6 +56,7 @@ export default function AdminDashboard({
     const [isApproving, setIsApproving] = useState(false)
     const [showConfirmDialog, setShowConfirmDialog] = useState(false)
     const [isTogglingIp, setIsTogglingIp] = useState(false)
+    const [selectedPhoto, setSelectedPhoto] = useState<{ name: string; time: string; ip: string; photo_in: string } | null>(null)
 
     const handleToggleIp = (enabled: boolean) => {
         setIsTogglingIp(true)
@@ -240,11 +242,38 @@ export default function AdminDashboard({
                                                 {alert.total} Karyawan
                                             </span>
                                         </div>
-                                        <ul className="text-sm space-y-1.5 divide-y divide-gray-100">
+                                        <ul className="text-sm space-y-2 divide-y divide-gray-100">
                                             {alert.users.map((u, i) => (
-                                                <li key={i} className="pt-1.5 first:pt-0 flex justify-between">
-                                                    <span className="font-medium text-slate-700">{u.name}</span>
-                                                    <span className="text-xs text-muted-foreground">{u.time}</span>
+                                                <li key={i} className="pt-2 first:pt-0 flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-2.5 overflow-hidden">
+                                                        {u.photo_in ? (
+                                                            <img 
+                                                                src={`/storage/${u.photo_in}`} 
+                                                                alt={u.name} 
+                                                                className="h-9 w-9 rounded-full object-cover border border-amber-300 shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                                                onClick={() => setSelectedPhoto({ name: u.name, time: u.time, ip: alert.ip_address, photo_in: u.photo_in! })}
+                                                            />
+                                                        ) : (
+                                                            <div className="h-9 w-9 rounded-full bg-slate-100 border flex items-center justify-center text-slate-400 shrink-0">
+                                                                <ImageIcon className="h-4 w-4" />
+                                                            </div>
+                                                        )}
+                                                        <div className="truncate">
+                                                            <p className="font-medium text-slate-800 text-sm truncate">{u.name}</p>
+                                                            <p className="text-[11px] text-slate-500">Jam: {u.time}</p>
+                                                        </div>
+                                                    </div>
+                                                    {u.photo_in && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="h-7 text-xs px-2.5 border-amber-300 text-amber-900 hover:bg-amber-100 shrink-0 gap-1"
+                                                            onClick={() => setSelectedPhoto({ name: u.name, time: u.time, ip: alert.ip_address, photo_in: u.photo_in! })}
+                                                        >
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                            Foto
+                                                        </Button>
+                                                    )}
                                                 </li>
                                             ))}
                                         </ul>
@@ -254,6 +283,51 @@ export default function AdminDashboard({
                         </CardContent>
                     </Card>
                 )}
+
+                {/* Dialog Modal Preview Foto Absensi Duplikat IP */}
+                <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-slate-900">
+                                <Eye className="h-5 w-5 text-blue-600" />
+                                Peninjauan Foto Absensi IP Duplikat
+                            </DialogTitle>
+                            <DialogDescription>
+                                Detail bukti foto absensi untuk verifikasi fisik karyawan.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {selectedPhoto && (
+                            <div className="space-y-3 pt-2">
+                                <div className="p-3 bg-slate-50 rounded-lg text-sm space-y-1 border">
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500">Nama Karyawan:</span>
+                                        <span className="font-bold text-slate-800">{selectedPhoto.name}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500">Waktu Masuk:</span>
+                                        <span className="font-mono font-semibold text-slate-700">{selectedPhoto.time}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500">IP Jaringan:</span>
+                                        <span className="font-mono font-semibold text-amber-700">{selectedPhoto.ip}</span>
+                                    </div>
+                                </div>
+                                <div className="border rounded-lg overflow-hidden bg-slate-950 flex justify-center items-center p-1 shadow-inner">
+                                    <img 
+                                        src={`/storage/${selectedPhoto.photo_in}`} 
+                                        alt={`Foto Absensi ${selectedPhoto.name}`} 
+                                        className="max-h-96 w-full object-contain rounded"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setSelectedPhoto(null)} className="w-full">
+                                Tutup
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Pending Requests */}
                 <Card className="mb-6">

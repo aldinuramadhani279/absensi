@@ -44,6 +44,7 @@ class AdminController extends Controller
                         return [
                             'name' => $a->user->name ?? 'Unknown',
                             'time' => $a->created_at->format('H:i:s'),
+                            'photo_in' => $a->photo_in,
                         ];
                     })
                 ];

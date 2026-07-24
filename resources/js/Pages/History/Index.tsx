@@ -13,6 +13,8 @@ interface Attendance {
     clock_out: string | null;
     status: string;
     shift: { name: string };
+    photo_in: string | null;
+    photo_out: string | null;
 }
 interface PaginatedResponse {
     current_page: number;
@@ -26,6 +28,7 @@ interface PaginatedResponse {
 
 export default function HistoryPage({ history }: { history: PaginatedResponse }) {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
     // If using generic pagination links from Laravel
     const handleLoadMore = () => {
@@ -57,7 +60,7 @@ export default function HistoryPage({ history }: { history: PaginatedResponse })
             <main className="container mx-auto px-4 py-6">
                 <Card>
                     <CardContent className="pt-6">
-                        <Table>
+                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Tanggal</TableHead>
@@ -65,6 +68,7 @@ export default function HistoryPage({ history }: { history: PaginatedResponse })
                                     <TableHead>Clock In</TableHead>
                                     <TableHead>Clock Out</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Foto</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -75,9 +79,35 @@ export default function HistoryPage({ history }: { history: PaginatedResponse })
                                         <TableCell>{format(new Date(att.clock_in), 'HH:mm:ss')}</TableCell>
                                         <TableCell>{att.clock_out ? format(new Date(att.clock_out), 'HH:mm:ss') : '-'}</TableCell>
                                         <TableCell>{att.status}</TableCell>
+                                        <TableCell>
+                                            <div className="flex gap-2">
+                                                {att.photo_in ? (
+                                                    <div 
+                                                        onClick={() => setPreviewPhoto(`/storage/${att.photo_in}`)}
+                                                        className="cursor-pointer border border-gray-200 rounded overflow-hidden w-10 h-10 bg-gray-50 flex items-center justify-center hover:opacity-80 transition-opacity"
+                                                        title="Klik untuk lihat Foto Masuk"
+                                                    >
+                                                        <img src={`/storage/${att.photo_in}`} alt="Clock In" className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground italic">-</span>
+                                                )}
+                                                {att.photo_out ? (
+                                                    <div 
+                                                        onClick={() => setPreviewPhoto(`/storage/${att.photo_out}`)}
+                                                        className="cursor-pointer border border-gray-200 rounded overflow-hidden w-10 h-10 bg-gray-50 flex items-center justify-center hover:opacity-80 transition-opacity"
+                                                        title="Klik untuk lihat Foto Pulang"
+                                                    >
+                                                        <img src={`/storage/${att.photo_out}`} alt="Clock Out" className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : att.clock_out ? (
+                                                    <span className="text-xs text-muted-foreground italic" title="Tidak ada foto">-</span>
+                                                ) : null}
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
                                 )) : (
-                                    <TableRow><TableCell colSpan={5} className="text-center h-24">Tidak ada riwayat absensi.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={6} className="text-center h-24">Tidak ada riwayat absensi.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>
@@ -97,6 +127,39 @@ export default function HistoryPage({ history }: { history: PaginatedResponse })
                     </CardContent>
                 </Card>
             </main>
+
+            {/* Modal Preview Foto */}
+            {previewPhoto && (
+                <div 
+                    className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in"
+                    onClick={() => setPreviewPhoto(null)}
+                >
+                    <div 
+                        className="bg-white rounded-lg overflow-hidden max-w-md w-full relative shadow-xl border"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button 
+                            className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/75 transition-colors z-10 font-bold"
+                            onClick={() => setPreviewPhoto(null)}
+                        >
+                            ✕
+                        </button>
+                        <div className="p-1 bg-black flex items-center justify-center min-h-[300px]">
+                            <img 
+                                src={previewPhoto} 
+                                alt="Preview Absensi" 
+                                className="max-h-[70vh] object-contain w-full"
+                            />
+                        </div>
+                        <div className="p-4 flex justify-between items-center bg-gray-50 border-t">
+                            <span className="font-semibold text-gray-900 text-sm">Foto Bukti Absensi</span>
+                            <Button variant="outline" size="sm" onClick={() => setPreviewPhoto(null)}>
+                                Tutup
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -20,7 +20,7 @@ interface User {
     id: number;
     name: string;
     email: string;
-    status: 'pns' | 'non-pns';
+    status: 'pns' | 'non-pns' | 'militer' | 'pppk' | 'pblu';
     nip?: string;
     employee_id?: string;
     profession: { id: number; name: string };
@@ -149,19 +149,29 @@ export default function EmployeesIndex({ employees, professions }: { employees: 
                                             <SelectContent>
                                                 <SelectItem value="pns">PNS</SelectItem>
                                                 <SelectItem value="non-pns">Non-PNS</SelectItem>
+                                                <SelectItem value="militer">Militer</SelectItem>
+                                                <SelectItem value="pppk">PPPK</SelectItem>
+                                                <SelectItem value="pblu">PBLU</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         {errors.status && <p className="text-sm text-red-500">{errors.status}</p>}
                                     </div>
 
-                                    {data.status === 'pns' && (
+                                    {['pns', 'pppk'].includes(data.status) && (
                                         <div className="space-y-2">
                                             <Label htmlFor="nip">NIP</Label>
                                             <Input id="nip" placeholder="Nomor Induk Pegawai" value={data.nip} onChange={e => setData('nip', e.target.value)} required />
                                             {errors.nip && <p className="text-sm text-red-500">{errors.nip}</p>}
                                         </div>
                                     )}
-                                    {data.status === 'non-pns' && (
+                                    {data.status === 'militer' && (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="nip">NRP</Label>
+                                            <Input id="nip" placeholder="Nomor Registrasi Prajurit" value={data.nip} onChange={e => setData('nip', e.target.value)} required />
+                                            {errors.nip && <p className="text-sm text-red-500">{errors.nip}</p>}
+                                        </div>
+                                    )}
+                                    {['non-pns', 'pblu'].includes(data.status) && (
                                         <div className="space-y-2">
                                             <Label htmlFor="employee_id">ID Karyawan</Label>
                                             <Input id="employee_id" placeholder="ID Karyawan (Opsional)" value={data.employee_id} onChange={e => setData('employee_id', e.target.value)} />
@@ -248,7 +258,13 @@ export default function EmployeesIndex({ employees, professions }: { employees: 
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${emp.status === 'pns' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>
+                                                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                                    emp.status === 'pns' ? 'bg-blue-100 text-blue-700' :
+                                                    emp.status === 'militer' ? 'bg-red-100 text-red-700' :
+                                                    emp.status === 'pppk' ? 'bg-indigo-100 text-indigo-700' :
+                                                    emp.status === 'pblu' ? 'bg-amber-100 text-amber-700' :
+                                                    'bg-slate-100 text-slate-700'
+                                                }`}>
                                                     {emp.status.toUpperCase()}
                                                 </span>
                                                 <span className="text-sm text-muted-foreground">{emp.nip || emp.employee_id || '-'}</span>

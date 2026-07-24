@@ -34,6 +34,18 @@ interface AdminTravelRequestsProps {
     requests: TravelRequest[];
 }
 
+const formatLocalDate = (dateString: string) => {
+    if (!dateString) return '';
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    
+    const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    return `${day} ${months[monthIndex]} ${year}`;
+}
+
 export default function AdminTravelRequests({ requests }: AdminTravelRequestsProps) {
     const { toast } = useToast();
 
@@ -102,9 +114,9 @@ export default function AdminTravelRequests({ requests }: AdminTravelRequestsPro
                                             <TableCell className="font-medium">{req.user.name}</TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col text-sm">
-                                                    <span>{req.start_date}</span>
+                                                    <span>{formatLocalDate(req.start_date)}</span>
                                                     <span className="text-muted-foreground">s/d</span>
-                                                    <span>{req.end_date}</span>
+                                                    <span>{formatLocalDate(req.end_date)}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="max-w-xs truncate" title={req.reason}>{req.reason}</TableCell>

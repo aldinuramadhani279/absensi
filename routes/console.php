@@ -35,4 +35,4 @@ Artisan::command('photos:prune', function () {
         $a->save();
     }
     $this->info("Berhasil menghapus {$count} foto absensi yang usianya lebih dari 24 jam.");
-})->purpose('Menghapus foto absensi yang lebih dari 24 jam')->hourly();
+})->purpose('Menghapus foto absensi yang lebih dari 24 jam');

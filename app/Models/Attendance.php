@@ -17,6 +17,7 @@ class Attendance extends Model
         'clock_in_ip',
         'clock_out_ip',
         'status',
+        'ip_address',
         'notes',
         'photo_in',
         'lat_in',

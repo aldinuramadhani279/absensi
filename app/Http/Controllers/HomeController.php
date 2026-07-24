@@ -16,14 +16,29 @@ class HomeController extends Controller
             ->whereDate('created_at', now()->today())
             ->first();
 
-        // Get shifts (optionally filter by profession if your logic requires it)
-        // For now, getting all shifts or shifts matching user's profession
-        $shifts = \App\Models\Shift::all(); 
+        // Hanya tampilkan shift yang sesuai dengan profesi/jabatan user yang login
+        $shifts = \App\Models\Shift::where('profession_id', $user->profession_id)->get();
         
         $has_forgot_clock_out = \App\Models\Attendance::where('user_id', $user->id)
             ->whereNull('clock_out')
             ->whereDate('created_at', '<', now()->today())
             ->exists();
+
+        // Pengecekan IP duplikat untuk hari ini
+        $clientIp = request()->ip();
+        $duplicate_ip_users = [];
+        $has_duplicate_ip = false;
+        if ($clientIp) {
+            $duplicate_ip_users = \App\Models\Attendance::where('ip_address', $clientIp)
+                ->whereDate('created_at', now()->today())
+                ->where('user_id', '!=', $user->id)
+                ->with('user')
+                ->get()
+                ->pluck('user.name')
+                ->unique()
+                ->toArray();
+            $has_duplicate_ip = count($duplicate_ip_users) > 0;
+        }
         
         return Inertia::render('User/Dashboard', [
             'auth' => [
@@ -32,6 +47,8 @@ class HomeController extends Controller
             'attendance' => $attendance,
             'shifts' => $shifts,
             'has_forgot_clock_out' => $has_forgot_clock_out,
+            'has_duplicate_ip' => $has_duplicate_ip,
+            'duplicate_ip_users' => array_values($duplicate_ip_users),
         ]);
     }
 }

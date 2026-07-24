@@ -33,28 +33,6 @@ class AuthController extends Controller
             
             $user = Auth::user();
             
-            // Link IP Logic: 1 Device 1 Account per Day
-            $today = \Carbon\Carbon::today();
-            $clientIp = $request->ip();
-
-            // Find if any OTHER user has attended from this IP today
-            $existingAttendanceFromIp = \App\Models\Attendance::where('ip_address', $clientIp)
-                ->whereDate('created_at', $today)
-                ->where('user_id', '!=', $user->id) // Different user
-                ->first();
-
-            if ($existingAttendanceFromIp) {
-                // Get the name of the user who used this IP
-                $otherUser = $existingAttendanceFromIp->user;
-                $otherUserName = $otherUser ? $otherUser->name : 'Pengguna Lain';
-
-                Auth::logout();
-                $request->session()->invalidate();
-                return back()->withErrors([
-                    'email' => "Maaf, perangkat ini sudah digunakan oleh $otherUserName untuk absensi hari ini. Satu perangkat hanya boleh digunakan oleh satu akun.",
-                ])->onlyInput('email');
-            }
-            
             // Check for force password change
             if ($user->must_change_password) {
                  return redirect()->intended('/password/force-change');
@@ -80,10 +58,10 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'profession_id' => 'required|exists:professions,id',
-            'status' => 'required|in:pns,non-pns',
-            'nip' => 'required_if:status,pns|nullable|string|max:255',
+            'status' => 'required|in:pns,non-pns,militer,pppk,pblu',
+            'nip' => 'nullable|required_if:status,pns,pppk,militer|string|max:255',
         ], [
-            'nip.required_if' => 'NIP wajib diisi untuk status PNS.',
+            'nip.required_if' => 'NIP atau NRP wajib diisi untuk status PNS, PPPK, atau Militer.',
         ]);
 
         $user = \App\Models\User::create([

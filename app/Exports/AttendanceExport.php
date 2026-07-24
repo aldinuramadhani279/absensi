@@ -35,11 +35,11 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
         }
 
         if ($this->startDate) {
-            $query->whereDate('date', '>=', $this->startDate);
+            $query->whereDate('created_at', '>=', $this->startDate);
         }
 
         if ($this->endDate) {
-            $query->whereDate('date', '<=', $this->endDate);
+            $query->whereDate('created_at', '<=', $this->endDate);
         }
 
         $attendances = $query->get();
@@ -103,12 +103,14 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
     {
         return [
             'Nama Karyawan',
+            'Status Pegawai',
+            'NIP / NRP / ID',
             'Jabatan',
             'Shift',
             'Tanggal',
             'Jam Masuk',
             'Jam Keluar',
-            'Status',
+            'Status Kehadiran',
             'Catatan',
         ];
     }
@@ -117,9 +119,11 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
     {
         return [
             $attendance->user->name,
+            strtoupper($attendance->user->status ?? '-'),
+            $attendance->user->nip ?? $attendance->user->employee_id ?? '-',
             $attendance->user->profession->name ?? '-',
             $attendance->shift->name ?? '-',
-            $attendance->date,
+            $attendance->date ?? ($attendance->clock_in ? \Carbon\Carbon::parse($attendance->clock_in)->format('Y-m-d') : ($attendance->created_at ? $attendance->created_at->format('Y-m-d') : '-')),
             $attendance->clock_in,
             $attendance->clock_out,
             $attendance->status,

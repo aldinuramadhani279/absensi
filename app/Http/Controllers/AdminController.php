@@ -24,9 +24,46 @@ class AdminController extends Controller
                 ];
             });
 
+        $today = now()->today();
+        $duplicateIpAlerts = \App\Models\Attendance::whereDate('created_at', $today)
+            ->whereNotNull('clock_in_ip')
+            ->select('clock_in_ip as ip_address', \DB::raw('count(*) as total'))
+            ->groupBy('clock_in_ip')
+            ->having('total', '>', 1)
+            ->get()
+            ->map(function ($dup) use ($today) {
+                $attendances = \App\Models\Attendance::where('clock_in_ip', $dup->ip_address)
+                    ->whereDate('created_at', $today)
+                    ->with('user')
+                    ->get();
+                
+                return [
+                    'ip_address' => $dup->ip_address,
+                    'total' => $dup->total,
+                    'users' => $attendances->map(function ($a) {
+                        return [
+                            'name' => $a->user->name ?? 'Unknown',
+                            'time' => $a->created_at->format('H:i:s'),
+                        ];
+                    })
+                ];
+            });
+
+        $blockDuplicateIp = \App\Models\Setting::get('block_duplicate_ip', '1') !== '0';
+
         return Inertia::render('Admin/Dashboard', [
-            'requests' => $requests
+            'requests' => $requests,
+            'duplicateIpAlerts' => $duplicateIpAlerts,
+            'blockDuplicateIp' => $blockDuplicateIp,
         ]);
+    }
+
+    public function toggleDuplicateIp(Request $request)
+    {
+        $enabled = $request->input('enabled', true);
+        \App\Models\Setting::set('block_duplicate_ip', $enabled ? '1' : '0');
+
+        return redirect()->back()->with('message', 'Pengaturan blokir IP duplikat berhasil diperbarui.');
     }
 
     public function getPasswordResets()

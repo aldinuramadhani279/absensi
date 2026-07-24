@@ -14,7 +14,14 @@ class LeaveRequest extends Model
         'start_date',
         'end_date',
         'reason',
+        'destination_address',
         'status',
+        'admin_attachment_path',
+    ];
+
+    protected $casts = [
+        'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d',
     ];
 
     public function user()

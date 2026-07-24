@@ -55,8 +55,13 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
             return
         }
 
-        if (status === 'pns' && !nip) {
-            setErrorLocal("NIP wajib diisi untuk status PNS")
+        if ((status === 'pns' || status === 'pppk') && !nip) {
+            setErrorLocal(`NIP wajib diisi untuk status ${status === 'pns' ? 'PNS' : 'PPPK'}`)
+            return
+        }
+
+        if (status === 'militer' && !nip) {
+            setErrorLocal("NRP wajib diisi untuk status Militer")
             return
         }
 
@@ -140,24 +145,27 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
                                 <SelectContent>
                                     <SelectItem value="non-pns">Non-PNS</SelectItem>
                                     <SelectItem value="pns">PNS</SelectItem>
+                                    <SelectItem value="militer">Militer</SelectItem>
+                                    <SelectItem value="pppk">PPPK</SelectItem>
+                                    <SelectItem value="pblu">PBLU</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
-                        {status === 'pns' && (
+                        {(status === 'pns' || status === 'pppk' || status === 'militer') && (
                             <div className="space-y-2">
                                 <Label htmlFor="nip" className="text-sm font-medium">
-                                    NIP
+                                    {status === 'militer' ? 'NRP' : 'NIP'}
                                 </Label>
                                 <Input
                                     id="nip"
-                                    type="number"
-                                    placeholder="Nomor Induk Pegawai"
+                                    type="text"
+                                    placeholder={status === 'militer' ? 'Nomor Registrasi Prajurit' : 'Nomor Induk Pegawai'}
                                     value={nip}
                                     onChange={(e) => setNip(e.target.value)}
                                     disabled={isLoading}
                                     className="h-11"
-                                    required={status === 'pns'}
+                                    required
                                 />
                             </div>
                         )}

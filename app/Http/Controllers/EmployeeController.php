@@ -40,10 +40,12 @@ class EmployeeController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'status' => 'required|in:pns,non-pns',
+            'status' => 'required|in:pns,non-pns,militer,pppk,pblu',
             'profession_id' => 'required|exists:professions,id', // Make sure profession exists
-            'nip' => 'nullable|required_if:status,pns|string', // NIP required if PNS
+            'nip' => 'nullable|required_if:status,pns,pppk,militer|string', // NIP/NRP required if PNS/PPPK/Militer
             'employee_id' => 'nullable|string', 
+        ], [
+            'nip.required_if' => 'NIP atau NRP wajib diisi untuk status PNS, PPPK, atau Militer.',
         ]);
 
         $user = User::create([

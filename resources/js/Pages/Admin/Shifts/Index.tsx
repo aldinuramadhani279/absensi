@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button } from "@/Components/ui/button";
@@ -33,6 +33,26 @@ export default function ShiftsIndex({ shifts, professions }: { shifts: Shift[], 
     const { toast } = useToast();
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [filterProfession, setFilterProfession] = useState<string>('all');
+
+    // Filter shifts berdasarkan jabatan yang dipilih
+    const filteredShifts = useMemo(() => {
+        if (filterProfession === 'all') return shifts;
+        return shifts.filter(s => String(s.profession?.id) === filterProfession);
+    }, [shifts, filterProfession]);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+    const totalPages = Math.ceil(filteredShifts.length / itemsPerPage);
+
+    // Reset pagination to page 1 whenever filters or shifts change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [shifts, filterProfession]);
+
+    const paginatedShifts = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredShifts.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredShifts, currentPage]);
 
     // Toggle jabatan dalam multi-select
     const toggleProfession = (id: string) => {
@@ -70,12 +90,6 @@ export default function ShiftsIndex({ shifts, professions }: { shifts: Shift[], 
             });
         }
     };
-
-    // Filter shifts berdasarkan jabatan yang dipilih
-    const filteredShifts = useMemo(() => {
-        if (filterProfession === 'all') return shifts;
-        return shifts.filter(s => String(s.profession?.id) === filterProfession);
-    }, [shifts, filterProfession]);
 
     // Group shifts by profession for display
     const shiftsByProfession = useMemo(() => {
@@ -225,50 +239,72 @@ export default function ShiftsIndex({ shifts, professions }: { shifts: Shift[], 
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {shiftsByProfession.length > 0 ? (
-                            shiftsByProfession.map(group => (
-                                <div key={group.profession?.id || 'none'}>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
-                                            {group.profession?.name || 'Tanpa Jabatan'}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">{group.shifts.length} shift</span>
-                                    </div>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Nama Shift</TableHead>
-                                                <TableHead>Jam Mulai</TableHead>
-                                                <TableHead>Jam Selesai</TableHead>
-                                                <TableHead className="text-right">Aksi</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {group.shifts.map((shift) => (
-                                                <TableRow key={shift.id}>
-                                                    <TableCell className='font-medium'>{shift.name}</TableCell>
-                                                    <TableCell>{shift.start_time}</TableCell>
-                                                    <TableCell>{shift.end_time}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                            onClick={() => handleDelete(shift.id)}
-                                                            disabled={deletingId === shift.id}
-                                                        >
-                                                            {deletingId === shift.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="text-center py-8 text-muted-foreground">
-                                Tidak ada data shift.
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nama Shift</TableHead>
+                                    <TableHead>Jabatan</TableHead>
+                                    <TableHead>Jam Mulai</TableHead>
+                                    <TableHead>Jam Selesai</TableHead>
+                                    <TableHead className="text-right">Aksi</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {paginatedShifts.length > 0 ? (
+                                    paginatedShifts.map((shift) => (
+                                        <TableRow key={shift.id}>
+                                            <TableCell className='font-medium'>{shift.name}</TableCell>
+                                            <TableCell>
+                                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
+                                                    {shift.profession?.name || 'Tanpa Jabatan'}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>{shift.start_time}</TableCell>
+                                            <TableCell>{shift.end_time}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                    onClick={() => handleDelete(shift.id)}
+                                                    disabled={deletingId === shift.id}
+                                                >
+                                                    {deletingId === shift.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                            Tidak ada data shift.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+
+                        {totalPages > 1 && (
+                            <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    Sebelumnya
+                                </Button>
+                                <span className="text-sm text-muted-foreground">
+                                    Halaman {currentPage} dari {totalPages}
+                                </span>
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    Selanjutnya
+                                </Button>
                             </div>
                         )}
                     </CardContent>

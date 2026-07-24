@@ -170,6 +170,8 @@ return [
         App\Providers\RouteServiceProvider::class,
     ])->toArray(),
 
+    'wbs_hash' => env('WBS_SECURE_HASH', 'a7d8e9f2b3c4'),
+
     /*
     |--------------------------------------------------------------------------
     | Class Aliases

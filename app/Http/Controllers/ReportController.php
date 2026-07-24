@@ -14,38 +14,121 @@ class ReportController extends Controller
     public function index(Request $request)
     {
         $professions = Profession::all() ?? []; // Ensure not null
-        
-        $attendances = []; // Default empty array
 
-        $query = Attendance::with(['user.profession', 'shift']) // Eager load
-            ->orderBy('created_at', 'desc');
+        // Jika start_date & end_date tidak ada di request, default ke hari ini
+        $startDate = $request->input('start_date', now()->format('Y-m-d'));
+        $endDate = $request->input('end_date', now()->format('Y-m-d'));
 
-        // Apply filters
+        // 1. Get Attendances
+        $query = Attendance::with(['user.profession', 'shift']);
+
         if ($request->filled('profession_id') && $request->profession_id !== 'all') {
             $query->whereHas('user', function ($q) use ($request) {
                 $q->where('profession_id', $request->profession_id);
             });
         }
 
-        if ($request->filled('start_date')) {
-            $query->whereDate('created_at', '>=', $request->start_date);
+        if ($startDate) {
+            $query->whereDate('created_at', '>=', $startDate);
         }
 
-        if ($request->filled('end_date')) {
-            $query->whereDate('created_at', '<=', $request->end_date);
+        if ($endDate) {
+            $query->whereDate('created_at', '<=', $endDate);
         }
 
-        // Limit to 50 if no filter to prevent overload, or get all if filtered
-        if (!$request->hasAny(['profession_id', 'start_date', 'end_date'])) {
-            $attendances = $query->take(50)->get();
-        } else {
-            $attendances = $query->get();
+        $attendances = $query->get();
+
+        // 2. Get Travel Requests (Dinas)
+        $trQuery = \App\Models\TravelRequest::where('status', 'approved')->with('user.profession');
+
+        if ($request->filled('profession_id') && $request->profession_id !== 'all') {
+            $trQuery->whereHas('user', function ($q) use ($request) {
+                $q->where('profession_id', $request->profession_id);
+            });
         }
+
+        if ($startDate) {
+            $trQuery->where('end_date', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $trQuery->where('start_date', '<=', $endDate);
+        }
+
+        $travelRequests = $trQuery->get();
+
+        // 3. Expand Travel Requests
+        $dinasRows = collect();
+        foreach ($travelRequests as $tr) {
+            $start = \Carbon\Carbon::parse($tr->start_date);
+            $end = \Carbon\Carbon::parse($tr->end_date);
+            
+            $reportStart = $startDate ? \Carbon\Carbon::parse($startDate) : $start;
+            $reportEnd = $endDate ? \Carbon\Carbon::parse($endDate) : $end;
+
+            $current = $start->copy();
+            while ($current->lte($end)) {
+                if ($current->gte($reportStart) && $current->lte($reportEnd)) {
+                    $dinasRows->push([
+                        'id' => 'dinas_' . $tr->id . '_' . $current->format('Y-m-d'),
+                        'user_id' => $tr->user_id,
+                        'user' => $tr->user,
+                        'shift' => null,
+                        'clock_in' => '-',
+                        'clock_out' => '-',
+                        'status' => 'Dinas Luar Kota',
+                        'notes' => $tr->reason,
+                        'created_at' => $current->format('Y-m-d 00:00:00'),
+                        'ip_address' => '-',
+                        'clock_in_ip' => '-',
+                        'photo_in' => null,
+                        'photo_out' => null
+                    ]);
+                }
+                $current->addDay();
+            }
+        }
+
+        // Map attendances to standard format
+        $attendancesData = $attendances->map(function($att) {
+            return [
+                'id' => $att->id,
+                'user_id' => $att->user_id,
+                'user' => $att->user,
+                'shift' => $att->shift,
+                'clock_in' => $att->clock_in,
+                'clock_out' => $att->clock_out,
+                'status' => $att->status,
+                'notes' => $att->notes,
+                'created_at' => $att->created_at->format('Y-m-d H:i:s'),
+                'ip_address' => $att->ip_address ?? $att->clock_in_ip,
+                'clock_in_ip' => $att->clock_in_ip,
+                'photo_in' => $att->photo_in,
+                'photo_out' => $att->photo_out
+            ];
+        });
+
+        $mergedAttendances = collect($attendancesData)->merge($dinasRows)->sortByDesc('created_at')->values()->all();
+
+        // 4. Get active employees for Matrix view
+        $usersQuery = \App\Models\User::where('is_admin', false)
+            ->with('profession')
+            ->orderBy('name', 'asc');
+
+        if ($request->filled('profession_id') && $request->profession_id !== 'all') {
+            $usersQuery->where('profession_id', $request->profession_id);
+        }
+        $users = $usersQuery->get();
 
         return Inertia::render('Admin/Reports/Index', [
             'professions' => $professions,
-            'attendances' => $attendances,
-            'filters' => $request->only(['profession_id', 'start_date', 'end_date']) ?? [], // Ensure not null
+            'attendances' => $mergedAttendances,
+            'users' => $users,
+            'filters' => [
+                'profession_id' => $request->profession_id ?? '',
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+            ]
         ]);
     }
 

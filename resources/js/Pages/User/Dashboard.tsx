@@ -43,6 +43,8 @@ interface DashboardProps {
     attendance: Attendance | null;
     shifts: Shift[];
     has_forgot_clock_out: boolean;
+    has_duplicate_ip?: boolean;
+    duplicate_ip_users?: string[];
     flash?: {
         success?: string;
         error?: string;
@@ -51,7 +53,7 @@ interface DashboardProps {
 
 // Utility functions (jika ada)
 
-export default function EmployeeDashboard({ auth, attendance: initialAttendance, shifts, has_forgot_clock_out }: DashboardProps) {
+export default function EmployeeDashboard({ auth, attendance: initialAttendance, shifts, has_forgot_clock_out, has_duplicate_ip = false, duplicate_ip_users = [] }: DashboardProps) {
     const { toast } = useToast()
 
     // Local state for interactive parts
@@ -60,6 +62,12 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     const [isClockingIn, setIsClockingIn] = useState(false)
     const [isClockingOut, setIsClockingOut] = useState(false)
     const [isRequestingReset, setIsRequestingReset] = useState(false)
+    const [isMobileDevice, setIsMobileDevice] = useState(true)
+
+    useEffect(() => {
+        const checkMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        setIsMobileDevice(checkMobile);
+    }, []);
 
     // Status Dialog State
     const [showStatusDialog, setShowStatusDialog] = useState(false)
@@ -80,6 +88,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const streamRef = useRef<MediaStream | null>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const actionTypeRef = useRef<"in" | "out" | null>(null)
 
     const user = auth.user;
     const hasClockOut = attendance?.clock_out !== null
@@ -92,46 +102,108 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         }
     }
 
-    // Start camera stream 
-    const initCameraAndLocation = () => {
+    // Handle File Input Fallback (Kamera bawaan HP)
+    const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-        // Start Camera
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-                .then(stream => {
-                    streamRef.current = stream;
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    if (err.name === 'NotAllowedError') {
-                        toast({ variant: "destructive", title: "Kamera Diblokir", description: "Izinkan akses kamera di pengaturan browser." });
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = canvasRef.current || document.createElement('canvas');
+                
+                // Perkecil ukuran gambar agar upload enteng (max 1280px)
+                const maxDim = 1280;
+                let width = img.width;
+                let height = img.height;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
                     } else {
-                        toast({ variant: "destructive", title: "Kamera Error", description: "Gagal mengakses kamera." });
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
                     }
-                    setShowCameraDialog(false);
-                });
-        } else {
-            toast({ 
-                variant: "destructive", 
-                title: "Akses Diblokir Browser", 
-                description: "Kamera tidak bisa diakses dari koneksi tidak aman (HTTP). Silakan gunakan trik Chrome Flags jika Anda mengetes lewat HP." 
-            });
-            setShowCameraDialog(false);
-        }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Tambahkan Watermark
+                    const dateStr = new Date().toLocaleString("id-ID");
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+                    ctx.fillRect(10, canvas.height - 40, 300, 30);
+                    ctx.font = "16px sans-serif";
+                    ctx.fillStyle = "white";
+                    ctx.fillText(`Waktu: ${dateStr}`, 20, canvas.height - 20);
+
+                    const photoBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    // Reset input file agar bisa digunakan lagi
+                    e.target.value = "";
+
+                    // Kirim ke API sesuai aksi (Clock In / Clock Out)
+                    if (actionTypeRef.current === "in") {
+                        submitClockIn(photoBase64, 0, 0);
+                    } else if (actionTypeRef.current === "out") {
+                        submitClockOut(photoBase64, 0, 0);
+                    }
+                }
+            };
+            img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
     }
 
-    // Open capture dialog
-    const openCaptureDialog = (type: "in" | "out") => {
+    // Open capture dialog — minta izin kamera dulu, baru buka dialog
+    const openCaptureDialog = async (type: "in" | "out") => {
         if (type === "in" && !selectedShift) {
             toast({ variant: "destructive", title: "Pilih Shift" });
             return;
         }
+
+        actionTypeRef.current = type;
         setActionType(type);
-        setShowCameraDialog(true);
-        initCameraAndLocation();
+
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        // Jika tidak mendukung mediaDevices (misal HTTP biasa), langsung fallback ke kamera bawaan HP (hanya untuk HP)
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (!isMobile) {
+                toast({ variant: "destructive", title: "harap absen menggunakan HP" });
+                return;
+            }
+            fileInputRef.current?.click();
+            return;
+        }
+
+        try {
+            // Browser akan tampilkan prompt izin kamera secara otomatis di sini
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+
+            // Izin diberikan — buka dialog kamera
+            setShowCameraDialog(true);
+            streamRef.current = stream;
+
+            setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+            }, 100);
+
+        } catch (err: any) {
+            console.error('Camera error, falling back to file input:', err);
+            // Jika gagal akses/izin ditolak/kamera sedang sibuk, fallback ke kamera bawaan HP (hanya untuk HP)
+            if (!isMobile) {
+                toast({ variant: "destructive", title: "harap absen menggunakan HP" });
+                return;
+            }
+            fileInputRef.current?.click();
+        }
     }
 
     // Handle Close Capture Dialog
@@ -297,6 +369,15 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     </CardHeader>
                 </Card>
 
+                {has_duplicate_ip && (
+                    <Alert className="mb-6 border-amber-300 bg-amber-50 text-amber-800">
+                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                        <AlertDescription>
+                            <strong>Warning:</strong> Koneksi IP Anda terdeteksi sama dengan karyawan lain hari ini ({duplicate_ip_users.join(', ')}). Harap pastikan Anda melakukan absensi secara mandiri.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 {has_forgot_clock_out && (
                     <Alert className="mb-6 border-yellow-300 bg-yellow-50 text-yellow-800">
                         <Clock className="h-4 w-4" />
@@ -312,6 +393,16 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                         {!attendance ? (
                             <div className="space-y-4">
                                 <p className="text-center text-muted-foreground">Anda belum melakukan clock in hari ini.</p>
+                                
+                                {!isMobileDevice && (
+                                    <Alert className="border-red-300 bg-red-50 text-red-800 text-left">
+                                        <AlertCircle className="h-4 w-4 text-red-600" />
+                                        <AlertDescription>
+                                            Silakan menggunakan HP untuk melakukan absensi / jangan menggunakan mode desktop.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+
                                 <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
                                     <Label htmlFor="shift" className="text-slate-700">1. Pilih Shift Kerja</Label>
                                     <Select value={selectedShift} onValueChange={setSelectedShift}>
@@ -351,6 +442,14 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     )}
                                 </div>
                                 <div className="space-y-2">
+                                     {!isMobileDevice && (
+                                         <Alert className="border-red-300 bg-red-50 text-red-800 text-left">
+                                             <AlertCircle className="h-4 w-4 text-red-600" />
+                                             <AlertDescription>
+                                                 Silakan menggunakan HP untuk melakukan absensi / jangan menggunakan mode desktop.
+                                             </AlertDescription>
+                                         </Alert>
+                                     )}
                                      <Button onClick={() => openCaptureDialog("out")} disabled={isClockingOut} className="w-full h-12 text-md font-medium" variant="destructive" size="lg">
                                         {isClockingOut ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memproses...</> : <><Camera className="mr-2 h-5 w-5" />Ambil Foto & Clock Out</>}
                                     </Button>
@@ -548,8 +647,21 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     </DialogContent>
                 </Dialog>
 
+
+
+                {/* Input File Fallback untuk Kamera Bawaan HP */}
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    accept="image/*" 
+                    capture="user" 
+                    className="hidden" 
+                    onChange={handleFileInputChange} 
+                />
+
                 <Toaster />
             </main>
+
         </div>
     )
 }

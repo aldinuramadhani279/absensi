@@ -25,15 +25,15 @@ class EmployeeController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'profession_id' => 'required|exists:professions,id',
-            'status' => 'required|in:pns,non-pns',
-            'nip' => 'nullable|required_if:status,pns|string|unique:users,nip',
+            'status' => 'required|in:pns,non-pns,militer,pppk,pblu',
+            'nip' => 'nullable|required_if:status,pns,pppk,militer|string|unique:users,nip',
         ]);
 
         $employee = null;
         DB::transaction(function () use ($validated, &$employee) {
             $employee_id = null;
-            if ($validated['status'] == 'non-pns') {
-                $lastEmployee = User::where('status', 'non-pns')
+            if (in_array($validated['status'], ['non-pns', 'pblu'])) {
+                $lastEmployee = User::whereIn('status', ['non-pns', 'pblu'])
                                     ->orderByRaw('CAST(employee_id AS UNSIGNED) DESC')
                                     ->lockForUpdate()
                                     ->first();

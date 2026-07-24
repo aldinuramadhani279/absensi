@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Models\Attendance;
 use App\Models\Shift;
+use App\Models\Setting;
 
 class AttendanceController extends Controller
 {
@@ -44,6 +45,12 @@ class AttendanceController extends Controller
         $user = Auth::user();
         $today = now()->today();
 
+        // Validasi: shift harus sesuai profesi user
+        $shift = Shift::find($request->shift_id);
+        if (!$shift || $shift->profession_id !== $user->profession_id) {
+            return response()->json(['message' => 'Shift tidak valid untuk jabatan Anda.'], 403);
+        }
+
         // Check if already clocked in today
         $existing = Attendance::where('user_id', $user->id)
             ->whereDate('created_at', $today)
@@ -53,18 +60,22 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Anda sudah melakukan clock in hari ini.'], 400);
         }
 
-        // IP Restriction
+        // Validasi: IP Address ganda hari ini (dikontrol oleh Pengaturan Admin ON/OFF)
+        $blockDuplicateIp = Setting::get('block_duplicate_ip', '1') !== '0';
         $clientIp = $request->ip();
-        $existingAttendanceFromIp = Attendance::where('ip_address', $clientIp)
-            ->whereDate('created_at', $today)
-            ->where('user_id', '!=', $user->id) 
-            ->first();
-
-        if ($existingAttendanceFromIp) {
-            $otherUser = $existingAttendanceFromIp->user->name ?? 'Pengguna Lain';
-            return response()->json(['message' => "IP ini sudah digunakan oleh $otherUser hari ini. 1 Perangkat 1 Akun."], 403);
+        if ($blockDuplicateIp && $clientIp) {
+            $ipUsed = Attendance::where(function ($q) use ($clientIp) {
+                    $q->where('ip_address', $clientIp)
+                      ->orWhere('clock_in_ip', $clientIp);
+                })
+                ->whereDate('created_at', $today)
+                ->where('user_id', '!=', $user->id)
+                ->exists();
+            if ($ipUsed) {
+                return response()->json(['message' => 'IP Address ini sudah digunakan oleh karyawan lain hari ini untuk absen.'], 400);
+            }
         }
-        
+
         // Simpan Foto
         $photoPath = $this->saveBase64Image($request->photo, 'in_' . $user->id);
 
@@ -81,8 +92,7 @@ class AttendanceController extends Controller
             'lon_in' => $request->longitude ?? null,
         ]);
         
-        // Hitung Keterlambatan
-        $shift = Shift::find($request->shift_id);
+        // Hitung Keterlambatan (menggunakan $shift yang sudah divalidasi di atas)
         $statusMessage = 'Tepat Waktu';
         $status = 'tepat waktu';
         $statusCode = 'ontime'; 

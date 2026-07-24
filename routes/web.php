@@ -55,6 +55,7 @@ Route::prefix('api')->group(function () {
 
 Route::middleware(['auth'])->prefix('admin')->group(function () { 
     Route::post('prune-photos', [\App\Http\Controllers\AdminController::class, 'prunePhotos'])->name('admin.prune-photos');
+    Route::post('toggle-duplicate-ip', [\App\Http\Controllers\AdminController::class, 'toggleDuplicateIp'])->name('admin.toggle-duplicate-ip');
 
     // Resource routes for master data
     Route::resource('professions', App\Http\Controllers\ProfessionController::class)->except(['create', 'edit', 'show', 'update']);
@@ -65,6 +66,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 
     Route::get('leave-requests', [App\Http\Controllers\AdminLeaveRequestController::class, 'index'])->name('admin.leave-requests.index');
     Route::patch('leave-requests/{leaveRequest}', [App\Http\Controllers\AdminLeaveRequestController::class, 'update'])->name('admin.leave-requests.update');
+    Route::post('leave-requests/{leaveRequest}/upload-surat', [App\Http\Controllers\AdminLeaveRequestController::class, 'uploadSurat'])->name('admin.leave-requests.upload-surat');
     
     Route::get('travel-requests', [App\Http\Controllers\AdminTravelRequestController::class, 'index'])->name('admin.travel-requests.index');
     Route::patch('travel-requests/{travelRequest}', [App\Http\Controllers\AdminTravelRequestController::class, 'update'])->name('admin.travel-requests.update');
@@ -78,3 +80,16 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 Route::get('/forgot-password', function () {
     return inertia('Auth/ForgotPassword');
 })->middleware('guest');
+
+// Public WBS Routes (akses bayangan tanpa login)
+Route::get('/wbs-private/{hash}', [\App\Http\Controllers\WhistleblowingController::class, 'showPublicForm'])->name('wbs.public.form');
+Route::post('/wbs-private/{hash}/submit', [\App\Http\Controllers\WhistleblowingController::class, 'storePublic'])->name('wbs.public.store');
+
+Route::get('/debug-wbs/{hash}', function ($hash) {
+    return response()->json([
+        'received_hash' => $hash,
+        'config_hash' => config('app.wbs_hash'),
+        'match' => ($hash === config('app.wbs_hash')),
+        'env_hash' => env('WBS_SECURE_HASH'),
+    ]);
+});

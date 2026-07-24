@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 class AdminLeaveRequestController extends Controller
 {
@@ -37,5 +38,27 @@ class AdminLeaveRequestController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Status pengajuan cuti berhasil diperbarui.');
+    }
+
+    /**
+     * Upload surat jalan for approved leave request.
+     */
+    public function uploadSurat(Request $request, LeaveRequest $leaveRequest)
+    {
+        $request->validate([
+            'admin_attachment' => 'required|file|mimes:pdf,jpg,jpeg,png|max:2048',
+        ]);
+
+        if ($leaveRequest->admin_attachment_path) {
+            Storage::disk('public')->delete($leaveRequest->admin_attachment_path);
+        }
+        
+        $path = $request->file('admin_attachment')->store('leave_attachments', 'public');
+        
+        $leaveRequest->update([
+            'admin_attachment_path' => $path
+        ]);
+
+        return redirect()->back()->with('success', 'Surat Jalan berhasil diunggah.');
     }
 }

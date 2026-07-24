@@ -21,6 +21,18 @@ interface TravelRequestsProps {
     requests: TravelRequest[]
 }
 
+const formatLocalDate = (dateString: string) => {
+    if (!dateString) return '';
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    
+    const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    return `${day} ${months[monthIndex]} ${year}`;
+}
+
 export default function TravelRequestsIndex({ requests }: TravelRequestsProps) {
     const [isCreating, setIsCreating] = useState(false)
     const [startDate, setStartDate] = useState("")
@@ -98,7 +110,7 @@ export default function TravelRequestsIndex({ requests }: TravelRequestsProps) {
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2 text-sm text-gray-500">
                                                         <CalendarIcon className="h-4 w-4" />
-                                                        <span>{req.start_date} s/d {req.end_date}</span>
+                                                        <span>{formatLocalDate(req.start_date)} s/d {formatLocalDate(req.end_date)}</span>
                                                     </div>
                                                     <p className="font-medium text-gray-900">{req.reason}</p>
                                                     <p className="text-xs text-gray-400">Diajukan pada {new Date(req.created_at).toLocaleDateString("id-ID")}</p>

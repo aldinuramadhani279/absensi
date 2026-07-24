@@ -13,7 +13,7 @@ import {
 } from "@/Components/ui/dialog"
 import { Badge } from "@/Components/ui/badge"
 import { Alert, AlertDescription } from "@/Components/ui/alert"
-import { CheckCircle2, Clock, Loader2, AlertCircle } from "lucide-react"
+import { CheckCircle2, Clock, Loader2, AlertCircle, ShieldAlert, ShieldCheck, Wifi } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import axios from "axios" // Using axios for API calls remaining within the page
 import AdminLayout from "@/Layouts/AdminLayout"
@@ -28,13 +28,56 @@ interface PasswordResetRequest {
     status: "pending" | "approved" | "rejected"
 }
 
-export default function AdminDashboard({ requests: initialRequests }: { requests: PasswordResetRequest[] }) {
+interface DuplicateIpUser {
+    name: string
+    time: string
+}
+
+interface DuplicateIpAlert {
+    ip_address: string
+    total: number
+    users: DuplicateIpUser[]
+}
+
+export default function AdminDashboard({ 
+    requests: initialRequests,
+    duplicateIpAlerts = [],
+    blockDuplicateIp = true
+}: { 
+    requests: PasswordResetRequest[]
+    duplicateIpAlerts?: DuplicateIpAlert[]
+    blockDuplicateIp?: boolean
+}) {
     const { toast } = useToast()
     // Data passed from Laravel controller
     const [requests, setRequests] = useState<PasswordResetRequest[]>(initialRequests || [])
     const [selectedRequest, setSelectedRequest] = useState<PasswordResetRequest | null>(null)
     const [isApproving, setIsApproving] = useState(false)
     const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+    const [isTogglingIp, setIsTogglingIp] = useState(false)
+
+    const handleToggleIp = (enabled: boolean) => {
+        setIsTogglingIp(true)
+        router.post('/admin/toggle-duplicate-ip', { enabled }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast({
+                    title: enabled ? "Fitur Blokir IP Diaktifkan" : "Fitur Blokir IP Dinonaktifkan",
+                    description: enabled 
+                        ? "Absensi dengan IP yang sama kini DIBLOKIR." 
+                        : "Absensi dengan IP yang sama kini DIIZINKAN (Bisa Double Absen).",
+                })
+            },
+            onError: () => {
+                toast({
+                    variant: "destructive",
+                    title: "Gagal Mengubah Pengaturan",
+                    description: "Terjadi kesalahan saat memperbarui pengaturan.",
+                })
+            },
+            onFinish: () => setIsTogglingIp(false)
+        })
+    }
 
     // No need for useEffect detailed data fetching if we pass data as props from Controller
     // However, for actions like Approve, we can keep using API calls OR Inertia visits.
@@ -119,6 +162,98 @@ export default function AdminDashboard({ requests: initialRequests }: { requests
                         </CardHeader>
                     </Card>
                 </div>
+
+                {/* Control Card for Duplicate IP Validation */}
+                <Card className="mb-6 border-slate-200 shadow-sm">
+                    <CardHeader className="pb-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Wifi className="h-5 w-5 text-blue-600" />
+                                    <CardTitle className="text-lg font-bold">Kontrol Keamanan IP Absensi</CardTitle>
+                                    {blockDuplicateIp ? (
+                                        <Badge variant="destructive" className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+                                            <ShieldAlert className="h-3.5 w-3.5 mr-1" />
+                                            BLOKIR IP DUPLIKAT (ON)
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="border-emerald-600 text-emerald-700 bg-emerald-50 font-semibold">
+                                            <ShieldCheck className="h-3.5 w-3.5 mr-1 text-emerald-600" />
+                                            IZINKAN DOUBLE ABSEN IP (OFF)
+                                        </Badge>
+                                    )}
+                                </div>
+                                <CardDescription className="text-sm text-slate-600">
+                                    {blockDuplicateIp ? (
+                                        <span>Status saat ini: <strong>DIBLOKIR</strong>. Karyawan tidak dapat melakukan absensi lebih dari 1x menggunakan IP Wi-Fi/Jaringan yang sama pada hari yang sama.</span>
+                                    ) : (
+                                        <span>Status saat ini: <strong>DIIZINKAN</strong>. Beberapa karyawan diperbolehkan melakukan absensi menggunakan IP Wi-Fi/Jaringan yang sama pada hari yang sama.</span>
+                                    )}
+                                </CardDescription>
+                            </div>
+                            <div className="shrink-0">
+                                {blockDuplicateIp ? (
+                                    <Button 
+                                        onClick={() => handleToggleIp(false)} 
+                                        disabled={isTogglingIp}
+                                        variant="outline"
+                                        className="border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-medium"
+                                    >
+                                        {isTogglingIp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Matikan Blokir (Izinkan Double Absen)
+                                    </Button>
+                                ) : (
+                                    <Button 
+                                        onClick={() => handleToggleIp(true)} 
+                                        disabled={isTogglingIp}
+                                        className="bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm"
+                                    >
+                                        {isTogglingIp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Aktifkan Blokir (Cegah Double Absen)
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </CardHeader>
+                </Card>
+
+                {duplicateIpAlerts && duplicateIpAlerts.length > 0 && (
+                    <Card className="border-amber-200 bg-amber-50/20 mb-6">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-amber-800">
+                                <AlertCircle className="h-5 w-5 text-amber-600 animate-pulse" />
+                                Peringatan: Deteksi IP Absensi Duplikat Hari Ini
+                            </CardTitle>
+                            <CardDescription className="text-amber-700/80">
+                                IP Address berikut digunakan oleh lebih dari satu karyawan untuk melakukan absensi hari ini.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {duplicateIpAlerts.map((alert) => (
+                                    <div key={alert.ip_address} className="p-4 bg-white border border-amber-200 rounded-lg shadow-sm">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="font-mono text-sm font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
+                                                IP: {alert.ip_address}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground font-medium">
+                                                {alert.total} Karyawan
+                                            </span>
+                                        </div>
+                                        <ul className="text-sm space-y-1.5 divide-y divide-gray-100">
+                                            {alert.users.map((u, i) => (
+                                                <li key={i} className="pt-1.5 first:pt-0 flex justify-between">
+                                                    <span className="font-medium text-slate-700">{u.name}</span>
+                                                    <span className="text-xs text-muted-foreground">{u.time}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Pending Requests */}
                 <Card className="mb-6">

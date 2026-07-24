@@ -15,7 +15,9 @@ interface LeaveRequest {
     start_date: string;
     end_date: string;
     reason: string;
+    destination_address?: string | null;
     status: 'pending' | 'approved' | 'rejected';
+    admin_attachment_path?: string | null;
 }
 
 export default function AdminLeaveRequestsIndex({ requests }: { requests: LeaveRequest[] }) {
@@ -34,6 +36,23 @@ export default function AdminLeaveRequestsIndex({ requests }: { requests: LeaveR
             },
             onError: () => {
                 toast({ variant: "destructive", title: "Gagal", description: "Gagal memperbarui status" });
+            }
+        });
+    };
+
+    const handleUploadSurat = (id: number, file: File) => {
+        const formData = new FormData();
+        formData.append('admin_attachment', file);
+        
+        router.post(`/admin/leave-requests/${id}/upload-surat`, formData, {
+            onSuccess: () => {
+                toast({
+                    title: "Berhasil",
+                    description: "Surat Jalan berhasil diunggah."
+                });
+            },
+            onError: () => {
+                toast({ variant: "destructive", title: "Gagal", description: "Gagal mengunggah Surat Jalan" });
             }
         });
     };
@@ -72,6 +91,7 @@ export default function AdminLeaveRequestsIndex({ requests }: { requests: LeaveR
                                 <TableRow className="hover:bg-amber-100/50 border-amber-200">
                                     <TableHead className="text-amber-900">Karyawan</TableHead>
                                     <TableHead className="text-amber-900">Tanggal</TableHead>
+                                    <TableHead className="text-amber-900">Alamat Tujuan</TableHead>
                                     <TableHead className="text-amber-900">Alasan</TableHead>
                                     <TableHead className='text-right text-amber-900'>Aksi</TableHead>
                                 </TableRow>
@@ -81,6 +101,7 @@ export default function AdminLeaveRequestsIndex({ requests }: { requests: LeaveR
                                     <TableRow key={req.id} className="hover:bg-amber-100/50 border-amber-200">
                                         <TableCell className="font-medium text-amber-900">{req.user.name}</TableCell>
                                         <TableCell className="text-amber-800">{`${format(new Date(req.start_date), 'dd MMM yyyy')} - ${format(new Date(req.end_date), 'dd MMM yyyy')}`}</TableCell>
+                                        <TableCell className="text-amber-800">{req.destination_address || '-'}</TableCell>
                                         <TableCell className='text-amber-800'>{req.reason}</TableCell>
                                         <TableCell className='text-right space-x-2'>
                                             <Button
@@ -104,7 +125,7 @@ export default function AdminLeaveRequestsIndex({ requests }: { requests: LeaveR
                                         </TableCell>
                                     </TableRow>
                                 )) : (
-                                    <TableRow><TableCell colSpan={4} className="text-center h-24 text-amber-800/60">Tidak ada permintaan cuti yang menunggu.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={5} className="text-center h-24 text-amber-800/60">Tidak ada permintaan cuti yang menunggu.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>
@@ -123,7 +144,9 @@ export default function AdminLeaveRequestsIndex({ requests }: { requests: LeaveR
                                 <TableRow>
                                     <TableHead>Karyawan</TableHead>
                                     <TableHead>Tanggal</TableHead>
+                                    <TableHead>Alamat Tujuan</TableHead>
                                     <TableHead>Alasan</TableHead>
+                                    <TableHead>Surat Jalan</TableHead>
                                     <TableHead>Status</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -132,7 +155,52 @@ export default function AdminLeaveRequestsIndex({ requests }: { requests: LeaveR
                                     <TableRow key={req.id}>
                                         <TableCell className="font-medium">{req.user.name}</TableCell>
                                         <TableCell>{`${format(new Date(req.start_date), 'dd MMM yyyy')} - ${format(new Date(req.end_date), 'dd MMM yyyy')}`}</TableCell>
+                                        <TableCell>{req.destination_address || '-'}</TableCell>
                                         <TableCell className='text-muted-foreground'>{req.reason}</TableCell>
+                                        <TableCell>
+                                            {req.status === 'approved' ? (
+                                                req.admin_attachment_path ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <a 
+                                                            href={`/storage/${req.admin_attachment_path}`} 
+                                                            target="_blank" 
+                                                            rel="noreferrer"
+                                                        >
+                                                            <Button size="sm" variant="outline" className="text-blue-600 border-blue-200 hover:bg-blue-50 h-8">
+                                                                Unduh
+                                                            </Button>
+                                                        </a>
+                                                        <label className="cursor-pointer text-xs text-muted-foreground underline hover:text-slate-700">
+                                                            Ganti
+                                                            <input 
+                                                                type="file" 
+                                                                className="hidden" 
+                                                                accept=".pdf,.jpg,.jpeg,.png"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) handleUploadSurat(req.id, file);
+                                                                }}
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                ) : (
+                                                    <label className="cursor-pointer">
+                                                        <span className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-amber-200 text-amber-600 bg-white hover:bg-amber-50 h-8 px-3 transition-colors">
+                                                            Upload Surat Jalan
+                                                        </span>
+                                                        <input 
+                                                            type="file" 
+                                                            className="hidden" 
+                                                            accept=".pdf,.jpg,.jpeg,.png"
+                                                            onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) handleUploadSurat(req.id, file);
+                                                            }}
+                                                        />
+                                                    </label>
+                                                )
+                                            ) : '-'}
+                                        </TableCell>
                                         <TableCell>
                                             <Badge
                                                 variant={req.status === 'approved' ? 'default' : 'destructive'}
@@ -143,7 +211,7 @@ export default function AdminLeaveRequestsIndex({ requests }: { requests: LeaveR
                                         </TableCell>
                                     </TableRow>
                                 )) : (
-                                    <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">Tidak ada riwayat permintaan cuti.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">Tidak ada riwayat permintaan cuti.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>

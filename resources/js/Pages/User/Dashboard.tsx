@@ -59,10 +59,14 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     // Local state
     const [attendance, setAttendance] = useState<Attendance | null>(initialAttendance)
     const [selectedShift, setSelectedShift] = useState<string>("")
+    const [isCustomShift, setIsCustomShift] = useState(false)
+    const [customShiftStart, setCustomShiftStart] = useState("")
+    const [customShiftEnd, setCustomShiftEnd] = useState("")
 
     // [DOUBLE SHIFT] State untuk lanjut double shift (absen shift berikutnya tanpa hapus shift sebelumnya)
     const [isDoubleShiftMode, setIsDoubleShiftMode] = useState(false)
     const [submitProgressText, setSubmitProgressText] = useState<string>("")
+    const [isForgotLoading, setIsForgotLoading] = useState(false)
 
     const [isClockingIn, setIsClockingIn] = useState(false)
     const [isClockingOut, setIsClockingOut] = useState(false)
@@ -173,9 +177,15 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
 
     // Open capture dialog — minta izin kamera dulu, baru buka dialog
     const openCaptureDialog = async (type: "in" | "out") => {
-        if (type === "in" && !selectedShift) {
-            toast({ variant: "destructive", title: "Pilih Shift" });
-            return;
+        if (type === "in") {
+            if (!selectedShift) {
+                toast({ variant: "destructive", title: "Pilih Shift" });
+                return;
+            }
+            if (isCustomShift && (!customShiftStart || !customShiftEnd)) {
+                toast({ variant: "destructive", title: "Isi waktu mulai dan selesai shift custom" });
+                return;
+            }
         }
 
         actionTypeRef.current = type;
@@ -291,10 +301,15 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         setSubmitProgressText("[2/2] Mengirim Foto...");
         try {
             const formData = new FormData();
-            formData.append('shift_id', selectedShift);
+            formData.append('shift_id', selectedShift);  // 'custom' jika shift custom
             formData.append('photo', photoBlob, 'clock_in.jpg');
             formData.append('latitude', lat.toString());
             formData.append('longitude', lng.toString());
+            // Custom shift fields
+            if (isCustomShift) {
+                formData.append('custom_shift_start', customShiftStart);
+                formData.append('custom_shift_end', customShiftEnd);
+            }
 
             const response = await axios.post("/api/clockin", formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
@@ -325,6 +340,24 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         } finally {
             setIsClockingIn(false);
             setSubmitProgressText("");
+        }
+    }
+
+    // [FITUR LUPA CLOCK OUT] Auto-close absensi aktif agar bisa clock in fresh
+    const handleForgotClockOut = async () => {
+        setIsForgotLoading(true);
+        try {
+            await axios.post("/api/forgot-clockout");
+            toast({ title: "✅ Sesi di-reset", description: "Sesi sebelumnya ditutup. Silakan Clock In kembali." });
+            router.reload();
+        } catch (err: any) {
+            toast({
+                variant: "destructive",
+                title: "Gagal",
+                description: err.response?.data?.message || "Gagal mereset sesi."
+            });
+        } finally {
+            setIsForgotLoading(false);
         }
     }
 
@@ -513,14 +546,52 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     <Label htmlFor="shift" className="text-slate-700">
                                         {isDoubleShiftMode ? "1. Pilih Shift Berikutnya (Double Shift)" : "1. Pilih Shift Kerja"}
                                     </Label>
-                                    <Select value={selectedShift} onValueChange={setSelectedShift}>
+                                    <Select
+                                        value={selectedShift}
+                                        onValueChange={(val) => {
+                                            setSelectedShift(val);
+                                            setIsCustomShift(val === 'custom');
+                                            if (val !== 'custom') {
+                                                setCustomShiftStart("");
+                                                setCustomShiftEnd("");
+                                            }
+                                        }}
+                                    >
                                         <SelectTrigger id="shift" className="bg-white"><SelectValue placeholder="Pilih shift kerja Anda" /></SelectTrigger>
                                         <SelectContent>
                                             {(shifts || []).map((shift) => (
                                                 <SelectItem key={shift.id} value={shift.id.toString()}>{shift.name} ({shift.start_time.substring(0, 5)} - {shift.end_time.substring(0, 5)})</SelectItem>
                                             ))}
+                                            {/* [CUSTOM SHIFT] Opsi tambahan untuk shift di luar jadwal */}
+                                            <SelectItem value="custom">⏰ Shift Custom (Tentukan Sendiri)</SelectItem>
                                         </SelectContent>
                                     </Select>
+
+                                    {/* [CUSTOM SHIFT] Input waktu muncul saat pilih shift custom */}
+                                    {isCustomShift && (
+                                        <div className="grid grid-cols-2 gap-3 pt-2">
+                                            <div className="space-y-1">
+                                                <Label className="text-xs text-slate-600">Jam Mulai</Label>
+                                                <input
+                                                    type="time"
+                                                    value={customShiftStart}
+                                                    onChange={e => setCustomShiftStart(e.target.value)}
+                                                    className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs text-slate-600">Jam Selesai</Label>
+                                                <input
+                                                    type="time"
+                                                    value={customShiftEnd}
+                                                    onChange={e => setCustomShiftEnd(e.target.value)}
+                                                    className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <Button onClick={() => openCaptureDialog("in")} disabled={isClockingIn} className="w-full h-12 text-md font-medium bg-blue-600 hover:bg-blue-700" size="lg">
                                     {isClockingIn ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />{submitProgressText || "Memproses..."}</> : <><Camera className="mr-2 h-5 w-5" />{isDoubleShiftMode ? "Ambil Foto & Clock In Double Shift" : "Ambil Foto & Clock In"}</>}
@@ -577,6 +648,21 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                         {isClockingOut ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />{submitProgressText || "Memproses..."}</> : <><Camera className="mr-2 h-5 w-5" />Ambil Foto & Clock Out</>}
                                     </Button>
                                     <p className="text-xs text-center text-muted-foreground mt-2">Pastikan Anda berada di area Rumah Sakit untuk melakukan absen pulang.</p>
+
+                                    {/* [FITUR LUPA CLOCK OUT] Tombol muncul saat ada sesi terlupakan */}
+                                    {has_forgot_clock_out && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full mt-1 border-amber-300 text-amber-700 hover:bg-amber-50 gap-2"
+                                            onClick={handleForgotClockOut}
+                                            disabled={isForgotLoading}
+                                        >
+                                            {isForgotLoading
+                                                ? <><Loader2 className="h-4 w-4 animate-spin" /> Mereset sesi...</>
+                                                : <>🕐 Lupa Clock Out? Klik di sini untuk reset & absen baru</>}
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         ) : null}

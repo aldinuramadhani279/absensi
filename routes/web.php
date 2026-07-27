@@ -44,6 +44,7 @@ Route::prefix('api')->group(function () {
     Route::middleware('auth')->group(function () {
         Route::post('/clockin', [App\Http\Controllers\AttendanceController::class, 'clockIn']);
         Route::post('/clockout', [App\Http\Controllers\AttendanceController::class, 'clockOut']);
+        Route::post('/forgot-clockout', [App\Http\Controllers\AttendanceController::class, 'forgotClockOut']);
         // [N-1] Endpoint ganti shift setelah clock out
         Route::post('/shift-change', [App\Http\Controllers\AttendanceController::class, 'changeShift']);
         // Profil password update
@@ -83,6 +84,11 @@ Route::middleware(['auth', 'is.admin'])->prefix('admin')->group(function () {
 
     Route::get('reports', [App\Http\Controllers\ReportController::class, 'index'])->name('admin.reports.index');
     Route::get('reports/export', [App\Http\Controllers\ReportController::class, 'export'])->name('admin.reports.export');
+
+    // [IZIN DADAKAN] Admin bisa memberikan izin langsung ke karyawan
+    Route::get('admin-leaves', [App\Http\Controllers\AdminLeaveGrantController::class, 'index'])->name('admin.admin-leaves.index');
+    Route::post('admin-leaves', [App\Http\Controllers\AdminLeaveGrantController::class, 'store'])->name('admin.admin-leaves.store');
+    Route::delete('admin-leaves/{adminLeave}', [App\Http\Controllers\AdminLeaveGrantController::class, 'destroy'])->name('admin.admin-leaves.destroy');
 });
 
 Route::get('/forgot-password', function () {

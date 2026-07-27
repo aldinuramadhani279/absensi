@@ -21,6 +21,7 @@ export default function AdminLayout({ children }: PropsWithChildren) {
         { href: "/admin/reports", label: "Laporan", icon: FileText },
         { href: "/admin/leave-requests", label: "Manajemen Cuti", icon: MailQuestion },
         { href: "/admin/travel-requests", label: "Dinas Luar Kota", icon: Plane },
+        { href: "/admin/admin-leaves", label: "Izin Dadakan", icon: Shield },
         { href: "/admin/whistleblowing", label: "Whistleblowing", icon: AlertTriangle },
     ];
 

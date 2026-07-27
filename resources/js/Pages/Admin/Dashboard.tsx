@@ -120,8 +120,8 @@ export default function AdminDashboard({
         }
     }
 
-    const pendingRequests = requests.filter((r) => r.status === "pending")
-    const processedRequests = requests.filter((r) => r.status !== "pending")
+    const pendingRequests = (requests || []).filter((r) => r && r.status === "pending")
+    const processedRequests = (requests || []).filter((r) => r && r.status !== "pending")
 
     return (
         <AdminLayout>

@@ -3,7 +3,7 @@ import { Head, router } from "@inertiajs/react"
 import { Button } from "@/Components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/Components/ui/card"
 import { Alert, AlertDescription } from "@/Components/ui/alert"
-import { Clock, LogOut, Clock3, Clock9, CheckCircle2, Loader2, History, FilePlus, Key, Frown, Smile, ThumbsUp, Camera, MapPin, AlertCircle, RefreshCw } from "lucide-react"
+import { Clock, LogOut, Clock3, Clock9, CheckCircle2, Loader2, History, FilePlus, Key, Frown, Smile, ThumbsUp, Camera, MapPin, AlertCircle, RefreshCw, UserCog } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { Label } from "@/Components/ui/label"
@@ -498,6 +498,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 </Card>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <a href="/profile"><Button variant="outline" className="w-full gap-2 border-blue-200 text-blue-800 hover:bg-blue-50"><UserCog className="h-4 w-4" />Edit Profil</Button></a>
                     <a href="/history"><Button variant="outline" className="w-full gap-2"><History className="h-4 w-4" />Riwayat Absensi</Button></a>
                     <a href="/leave-requests"><Button variant="outline" className="w-full gap-2"><FilePlus className="h-4 w-4" />Ajukan Cuti</Button></a>
                     <a href="/travel-requests"><Button variant="outline" className="w-full gap-2"><FilePlus className="h-4 w-4" />Dinas Luar Kota</Button></a>

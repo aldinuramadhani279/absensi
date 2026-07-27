@@ -20,6 +20,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::get('/home', [HomeController::class, 'index'])->name('home');
+    Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'index'])->name('profile.index');
+    Route::post('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::get('/history', [App\Http\Controllers\HistoryController::class, 'index'])->name('history.index');
     Route::get('/leave-requests', [App\Http\Controllers\LeaveRequestController::class, 'index'])->name('leave-requests.index');
     Route::post('/leave-requests', [App\Http\Controllers\LeaveRequestController::class, 'store'])->name('leave-requests.store');
@@ -44,6 +46,8 @@ Route::prefix('api')->group(function () {
         Route::post('/clockout', [App\Http\Controllers\AttendanceController::class, 'clockOut']);
         // [N-1] Endpoint ganti shift setelah clock out
         Route::post('/shift-change', [App\Http\Controllers\AttendanceController::class, 'changeShift']);
+        // Profil password update
+        Route::post('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword']);
 
         Route::post('/password/request-from-profile', [App\Http\Controllers\PasswordResetController::class, 'storeFromProfile']);
 

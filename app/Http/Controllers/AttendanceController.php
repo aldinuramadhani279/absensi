@@ -15,6 +15,26 @@ class AttendanceController extends Controller
     // Fitur Geofencing dan Radius dihapus atas permintaan pengguna
 
     /**
+     * Simpan gambar (Upload Binary File atau Base64) ke storage publik
+     */
+    private function savePhoto(Request $request, string $fieldKey, string $prefix): string
+    {
+        if ($request->hasFile($fieldKey)) {
+            $file = $request->file($fieldKey);
+            $ext = $file->getClientOriginalExtension() ?: 'jpg';
+            $imageName = $prefix . '_' . time() . '_' . Str::random(10) . '.' . $ext;
+            $file->storeAs('attendances', $imageName, 'public');
+            return 'attendances/' . $imageName;
+        }
+
+        if ($request->filled($fieldKey)) {
+            return $this->saveBase64Image($request->input($fieldKey), $prefix);
+        }
+
+        throw new \InvalidArgumentException("Foto absensi tidak ditemukan.");
+    }
+
+    /**
      * Simpan gambar base64 ke storage publik (dukung format JPEG / PNG)
      */
     private function saveBase64Image($base64String, $prefix)
@@ -49,7 +69,7 @@ class AttendanceController extends Controller
     {
         $request->validate([
             'shift_id' => 'required|exists:shifts,id',
-            'photo'    => 'required|string', // base64 string
+            'photo'    => 'required', // File object (FormData) or Base64 string
         ]);
 
         $user = Auth::user();
@@ -88,7 +108,7 @@ class AttendanceController extends Controller
         }
 
         // Simpan Foto
-        $photoPath = $this->saveBase64Image($request->photo, 'in_' . $user->id);
+        $photoPath = $this->savePhoto($request, 'photo', 'in_' . $user->id);
 
         $attendance = Attendance::create([
             'user_id'     => $user->id,
@@ -163,7 +183,7 @@ class AttendanceController extends Controller
     public function clockOut(Request $request)
     {
         $request->validate([
-            'photo' => 'required|string', // base64 string
+            'photo' => 'required', // File object (FormData) or Base64 string
         ]);
 
         $user = Auth::user();
@@ -181,7 +201,7 @@ class AttendanceController extends Controller
         }
 
         // Simpan Foto
-        $photoPath = $this->saveBase64Image($request->photo, 'out_' . $user->id);
+        $photoPath = $this->savePhoto($request, 'photo', 'out_' . $user->id);
 
         $attendance->update([
             'clock_out'    => now(),

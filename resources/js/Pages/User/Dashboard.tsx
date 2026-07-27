@@ -56,11 +56,9 @@ interface DashboardProps {
 export default function EmployeeDashboard({ auth, attendance: initialAttendance, shifts, has_forgot_clock_out, has_duplicate_ip = false, duplicate_ip_users = [] }: DashboardProps) {
     const { toast } = useToast()
 
-    // Local state for interactive parts
-    const [attendance, setAttendance] = useState<Attendance | null>(initialAttendance)
-    const [selectedShift, setSelectedShift] = useState<string>("")
     // [DOUBLE SHIFT] State untuk lanjut double shift (absen shift berikutnya tanpa hapus shift sebelumnya)
     const [isDoubleShiftMode, setIsDoubleShiftMode] = useState(false)
+    const [submitProgressText, setSubmitProgressText] = useState<string>("")
 
     const [isClockingIn, setIsClockingIn] = useState(false)
     const [isClockingOut, setIsClockingOut] = useState(false)
@@ -110,6 +108,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         const file = e.target.files?.[0];
         if (!file) return;
 
+        setSubmitProgressText("[1/2] Mengompresi Foto...");
+
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = new Image();
@@ -144,17 +144,22 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     ctx.fillStyle = "white";
                     ctx.fillText(`Waktu: ${dateStr}`, 15, canvas.height - 18);
 
-                    const photoBase64 = canvas.toDataURL('image/jpeg', 0.65);
-                    
                     // Reset input file agar bisa digunakan lagi
                     e.target.value = "";
 
-                    // Kirim ke API sesuai aksi (Clock In / Clock Out)
-                    if (actionTypeRef.current === "in") {
-                        submitClockIn(photoBase64, 0, 0);
-                    } else if (actionTypeRef.current === "out") {
-                        submitClockOut(photoBase64, 0, 0);
-                    }
+                    // Konversi ke Binary Blob secara Async (background thread, UI tidak freeze)
+                    canvas.toBlob(async (blob) => {
+                        if (!blob) {
+                            toast({ variant: "destructive", title: "Gagal memproses foto", description: "Silakan coba lagi." });
+                            setSubmitProgressText("");
+                            return;
+                        }
+                        if (actionTypeRef.current === "in") {
+                            await submitClockIn(blob, 0, 0);
+                        } else if (actionTypeRef.current === "out") {
+                            await submitClockOut(blob, 0, 0);
+                        }
+                    }, 'image/jpeg', 0.65);
                 }
             };
             img.src = event.target?.result as string;
@@ -223,6 +228,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         const canvas = canvasRef.current;
         if (!video || !canvas) return;
 
+        setSubmitProgressText("[1/2] Mengompresi Foto...");
+
         let width = video.videoWidth || 640;
         let height = video.videoHeight || 480;
 
@@ -254,32 +261,40 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         ctx.fillStyle = "white";
         ctx.fillText(`Waktu: ${dateStr}`, 15, canvas.height - 18);
 
-        // Convert to super compressed JPEG (0.65 quality ~30-40KB)
-        const photoBase64 = canvas.toDataURL('image/jpeg', 0.65);
-
         // Stop camera & close dialog
         stopCamera();
         setShowCameraDialog(false);
 
-        // Submit to API using actionTypeRef.current for guaranteed sync state
-        const currentAction = actionTypeRef.current || actionType;
-        if (currentAction === "in") {
-            await submitClockIn(photoBase64, 0, 0);
-        } else {
-            await submitClockOut(photoBase64, 0, 0);
-        }
+        // Async toBlob (Non-blocking background thread)
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                toast({ variant: "destructive", title: "Gagal memproses foto", description: "Silakan coba lagi." });
+                setSubmitProgressText("");
+                return;
+            }
+
+            const currentAction = actionTypeRef.current || actionType;
+            if (currentAction === "in") {
+                await submitClockIn(blob, 0, 0);
+            } else {
+                await submitClockOut(blob, 0, 0);
+            }
+        }, 'image/jpeg', 0.65);
     }
 
-    const submitClockIn = async (photo: string, lat: number, lng: number) => {
-        setIsClockingIn(true)
+    const submitClockIn = async (photoBlob: Blob | File, lat: number, lng: number) => {
+        setIsClockingIn(true);
+        setSubmitProgressText("[2/2] Mengirim Foto...");
         try {
-            const response = await axios.post("/api/clockin", { 
-                shift_id: Number.parseInt(selectedShift),
-                photo: photo,
-                latitude: lat,
-                longitude: lng
-            }, {
-                timeout: 45000 // 45 seconds timeout safeguard for slow mobile networks
+            const formData = new FormData();
+            formData.append('shift_id', selectedShift);
+            formData.append('photo', photoBlob, 'clock_in.jpg');
+            formData.append('latitude', lat.toString());
+            formData.append('longitude', lng.toString());
+
+            const response = await axios.post("/api/clockin", formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+                timeout: 45000 // 45 seconds timeout safeguard
             });
 
             const newAttendance = response.data.attendance;
@@ -304,18 +319,22 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
             }
             toast({ variant: "destructive", title: "Clock In Gagal", description: errorMsg });
         } finally {
-            setIsClockingIn(false)
+            setIsClockingIn(false);
+            setSubmitProgressText("");
         }
     }
 
-    const submitClockOut = async (photo: string, lat: number, lng: number) => {
-        setIsClockingOut(true)
+    const submitClockOut = async (photoBlob: Blob | File, lat: number, lng: number) => {
+        setIsClockingOut(true);
+        setSubmitProgressText("[2/2] Mengirim Foto...");
         try {
-            const response = await axios.post("/api/clockout", {
-                photo: photo,
-                latitude: lat,
-                longitude: lng
-            }, {
+            const formData = new FormData();
+            formData.append('photo', photoBlob, 'clock_out.jpg');
+            formData.append('latitude', lat.toString());
+            formData.append('longitude', lng.toString());
+
+            const response = await axios.post("/api/clockout", formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
                 timeout: 45000 // 45 seconds timeout safeguard
             });
             toast({ title: "Clock Out Berhasil!" });
@@ -336,7 +355,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
             }
             toast({ variant: "destructive", title: "Clock Out Gagal", description: errorMsg });
         } finally {
-            setIsClockingOut(false)
+            setIsClockingOut(false);
+            setSubmitProgressText("");
         }
     }
 
@@ -485,7 +505,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     </Select>
                                 </div>
                                 <Button onClick={() => openCaptureDialog("in")} disabled={isClockingIn} className="w-full h-12 text-md font-medium bg-blue-600 hover:bg-blue-700" size="lg">
-                                    {isClockingIn ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memproses...</> : <><Camera className="mr-2 h-5 w-5" />{isDoubleShiftMode ? "Ambil Foto & Clock In Double Shift" : "Ambil Foto & Clock In"}</>}
+                                    {isClockingIn ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />{submitProgressText || "Memproses..."}</> : <><Camera className="mr-2 h-5 w-5" />{isDoubleShiftMode ? "Ambil Foto & Clock In Double Shift" : "Ambil Foto & Clock In"}</>}
                                 </Button>
                                 {isDoubleShiftMode && (
                                     <Button variant="ghost" size="sm" onClick={() => setIsDoubleShiftMode(false)} className="w-full text-slate-500 hover:text-slate-700">
@@ -536,7 +556,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                          </Alert>
                                      )}
                                      <Button onClick={() => openCaptureDialog("out")} disabled={isClockingOut} className="w-full h-12 text-md font-medium" variant="destructive" size="lg">
-                                        {isClockingOut ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memproses...</> : <><Camera className="mr-2 h-5 w-5" />Ambil Foto & Clock Out</>}
+                                        {isClockingOut ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />{submitProgressText || "Memproses..."}</> : <><Camera className="mr-2 h-5 w-5" />Ambil Foto & Clock Out</>}
                                     </Button>
                                     <p className="text-xs text-center text-muted-foreground mt-2">Pastikan Anda berada di area Rumah Sakit untuk melakukan absen pulang.</p>
                                 </div>

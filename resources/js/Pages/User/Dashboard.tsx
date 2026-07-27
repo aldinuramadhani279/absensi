@@ -219,39 +219,51 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
 
     // Capture Photo, Add Watermark & Submit
     const captureAndSubmit = async () => {
-
         const video = videoRef.current;
         const canvas = canvasRef.current;
         if (!video || !canvas) return;
 
-        // Set canvas size to video size
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        let width = video.videoWidth || 640;
+        let height = video.videoHeight || 480;
+
+        // Perkecil ukuran gambar ke max 1280px agar upload instan (< 200KB)
+        const maxDim = 1280;
+        if (width > maxDim || height > maxDim) {
+            if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+            } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+            }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Draw image
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Draw video frame to canvas with optimized dimensions
+        ctx.drawImage(video, 0, 0, width, height);
 
         // Add Watermark overlay
         const dateStr = new Date().toLocaleString("id-ID");
-        
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; // Semi-transparent black background
-        ctx.fillRect(10, canvas.height - 40, 300, 30);
-
-        ctx.font = "16px sans-serif";
-        ctx.fillStyle = "white"; // White text
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(10, canvas.height - 40, Math.min(300, canvas.width - 20), 30);
+        ctx.font = "14px sans-serif";
+        ctx.fillStyle = "white";
         ctx.fillText(`Waktu: ${dateStr}`, 20, canvas.height - 20);
 
-        // Convert to base64
-        const photoBase64 = canvas.toDataURL('image/png');
+        // Convert to optimized compressed JPEG (0.75 quality ~100-200KB vs 15MB PNG)
+        const photoBase64 = canvas.toDataURL('image/jpeg', 0.75);
 
-        // Stop camera
+        // Stop camera & close dialog
         stopCamera();
         setShowCameraDialog(false);
 
-        // Submit to API
-        if (actionType === "in") {
+        // Submit to API using actionTypeRef.current for guaranteed sync state
+        const currentAction = actionTypeRef.current || actionType;
+        if (currentAction === "in") {
             await submitClockIn(photoBase64, 0, 0);
         } else {
             await submitClockOut(photoBase64, 0, 0);
@@ -266,10 +278,11 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 photo: photo,
                 latitude: lat,
                 longitude: lng
+            }, {
+                timeout: 25000 // 25 seconds timeout safeguard
             });
 
             const newAttendance = response.data.attendance;
-            // setStatusResult using vars...
             setStatusResult({
                 label: response.data.status_label,
                 status: newAttendance.status,
@@ -281,7 +294,15 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
             setIsDoubleShiftMode(false);
             router.reload({ only: ['attendance'] });
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Clock In Gagal", description: error.response?.data?.message || "Error" });
+            let errorMsg = "Terjadi kesalahan jaringan saat absensi.";
+            if (error.code === 'ECONNABORTED') {
+                errorMsg = "Koneksi lambat/timeout. Silakan coba lagi.";
+            } else if (error.response?.data?.message) {
+                errorMsg = error.response.data.message;
+            } else if (error.response?.status === 413) {
+                errorMsg = "Ukuran foto terlalu besar untuk dikirim.";
+            }
+            toast({ variant: "destructive", title: "Clock In Gagal", description: errorMsg });
         } finally {
             setIsClockingIn(false)
         }
@@ -294,6 +315,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 photo: photo,
                 latitude: lat,
                 longitude: lng
+            }, {
+                timeout: 25000 // 25 seconds timeout safeguard
             });
             toast({ title: "Clock Out Berhasil!" });
             router.reload({
@@ -303,7 +326,15 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 }
             });
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Clock Out Gagal", description: error.response?.data?.message || "Error" });
+            let errorMsg = "Terjadi kesalahan jaringan saat absensi.";
+            if (error.code === 'ECONNABORTED') {
+                errorMsg = "Koneksi lambat/timeout. Silakan coba lagi.";
+            } else if (error.response?.data?.message) {
+                errorMsg = error.response.data.message;
+            } else if (error.response?.status === 413) {
+                errorMsg = "Ukuran foto terlalu besar untuk dikirim.";
+            }
+            toast({ variant: "destructive", title: "Clock Out Gagal", description: errorMsg });
         } finally {
             setIsClockingOut(false)
         }

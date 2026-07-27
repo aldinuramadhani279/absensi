@@ -15,19 +15,29 @@ class AttendanceController extends Controller
     // Fitur Geofencing dan Radius dihapus atas permintaan pengguna
 
     /**
-     * Simpan gambar base64 ke storage publik
+     * Simpan gambar base64 ke storage publik (dukung format JPEG / PNG)
      */
     private function saveBase64Image($base64String, $prefix)
     {
-        // Pisahkan data URI dari data base64 (format: data:image/png;base64,.....)
-        @list($type, $file_data) = explode(';', $base64String);
-        @list(, $file_data) = explode(',', $file_data);
+        $ext = 'jpg';
+        $imageData = $base64String;
+
+        if (str_contains($base64String, ';base64,')) {
+            $parts = explode(';base64,', $base64String);
+            $imageData = $parts[1];
+            if (str_contains($parts[0], 'png')) {
+                $ext = 'png';
+            }
+        } elseif (str_contains($base64String, ',')) {
+            $parts = explode(',', $base64String);
+            $imageData = $parts[1];
+        }
 
         // Dekode base64 menjadi file binary
-        $image = base64_decode($file_data);
+        $image = base64_decode($imageData);
 
         // Tentukan nama file unik
-        $imageName = $prefix . '_' . time() . '_' . Str::random(10) . '.png';
+        $imageName = $prefix . '_' . time() . '_' . Str::random(10) . '.' . $ext;
 
         // Simpan menggunakan disk 'public' (folder: storage/app/public/attendances)
         Storage::disk('public')->put('attendances/' . $imageName, $image);

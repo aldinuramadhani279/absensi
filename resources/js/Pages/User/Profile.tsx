@@ -54,11 +54,11 @@ export default function ProfilePage({ user, professions, employmentStatuses = []
     const { toast } = useToast()
 
     // Form state
-    const [name, setName] = useState(user.name)
-    const [professionId, setProfessionId] = useState(user.profession_id?.toString() ?? "")
-    const [nip, setNip] = useState(user.nip ?? "")
-    const [employeeId, setEmployeeId] = useState(user.employee_id ?? "")
-    const [status, setStatus] = useState(user.status ?? "")
+    const [name, setName] = useState(user?.name ?? "")
+    const [professionId, setProfessionId] = useState(user?.profession_id?.toString() ?? "")
+    const [nip, setNip] = useState(user?.nip ?? "")
+    const [employeeId, setEmployeeId] = useState(user?.employee_id ?? "")
+    const [status, setStatus] = useState(user?.status ?? "")
     const [isSaving, setIsSaving] = useState(false)
 
     // Password dialog state
@@ -128,7 +128,7 @@ export default function ProfilePage({ user, professions, employmentStatuses = []
         }
     }
 
-    const statusLabel = STATUS_LABELS[user.status ?? ""] ?? user.status ?? "-"
+    const statusLabel = DEFAULT_STATUS_LABELS[user?.status ?? ""] ?? user?.status ?? "-"
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
@@ -165,11 +165,11 @@ export default function ProfilePage({ user, professions, employmentStatuses = []
                     <CardContent className="pt-0 pb-5 px-6">
                         <div className="flex items-end gap-4 -mt-10 mb-4">
                             <div className="h-20 w-20 rounded-2xl bg-white border-4 border-white shadow-md flex items-center justify-center text-3xl font-black text-blue-700 select-none">
-                                {name.charAt(0).toUpperCase()}
+                                {name ? name.charAt(0).toUpperCase() : "U"}
                             </div>
                             <div className="pb-1">
-                                <h2 className="font-bold text-lg text-slate-900 leading-tight">{user.name}</h2>
-                                <p className="text-sm text-slate-500">{user.email}</p>
+                                <h2 className="font-bold text-lg text-slate-900 leading-tight">{user?.name ?? ""}</h2>
+                                <p className="text-sm text-slate-500">{user?.email ?? ""}</p>
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -222,7 +222,7 @@ export default function ProfilePage({ user, professions, employmentStatuses = []
                             <div className="space-y-1.5">
                                 <Label className="text-sm font-medium text-slate-700">Email</Label>
                                 <div className="flex h-10 w-full rounded-lg border border-slate-100 bg-slate-50 px-3 items-center text-sm text-slate-500 select-none">
-                                    {user.email}
+                                    {user?.email ?? ""}
                                     <span className="ml-auto text-xs text-slate-400 bg-slate-200 px-2 py-0.5 rounded">Tidak bisa diubah</span>
                                 </div>
                             </div>

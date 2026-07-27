@@ -12,10 +12,17 @@ class HomeController extends Controller
     {
         $user = Auth::user();
 
-        // [FIX C-1] Gunakan 24 jam terakhir, bukan whereDate(today)
-        // Agar shift malam tidak kehilangan data setelah tengah malam
-        $attendance = \App\Models\Attendance::where('user_id', $user->id)
+        // [DOUBLE SHIFT SUPPORT] Prioritaskan absensi yang sedang AKTIF (belum clock out)
+        // Jika tidak ada yang aktif, ambil absensi terakhir dalam 24 jam terakhir
+        $activeAttendance = \App\Models\Attendance::where('user_id', $user->id)
+            ->whereNull('clock_out')
             ->where('clock_in', '>=', now()->subHours(24))
+            ->with('shift')
+            ->first();
+
+        $attendance = $activeAttendance ?? \App\Models\Attendance::where('user_id', $user->id)
+            ->where('clock_in', '>=', now()->subHours(24))
+            ->with('shift')
             ->orderBy('clock_in', 'desc')
             ->first();
 

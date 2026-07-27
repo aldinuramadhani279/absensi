@@ -50,14 +50,15 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Shift tidak valid untuk jabatan Anda.'], 403);
         }
 
-        // [FIX C-1] Cek absensi dalam 24 jam terakhir — mendukung shift malam
-        // Tidak lagi pakai whereDate(today) agar shift malam tidak reset saat tengah malam
-        $existing = Attendance::where('user_id', $user->id)
+        // [DOUBLE SHIFT SUPPORT] Cek apakah user sedang aktif di shift (belum clock out)
+        // Karyawan yang sudah clock out dari shift 1 dapat melakukan clock in untuk shift 2 (Double Shift)
+        $existingActive = Attendance::where('user_id', $user->id)
+            ->whereNull('clock_out')
             ->where('clock_in', '>=', now()->subHours(24))
             ->first();
 
-        if ($existing) {
-            return response()->json(['message' => 'Anda sudah melakukan clock in hari ini.'], 400);
+        if ($existingActive) {
+            return response()->json(['message' => 'Anda masih memiliki sesi shift yang sedang berjalan. Silakan Clock Out terlebih dahulu.'], 400);
         }
 
         // Validasi: IP Address ganda hari ini (dikontrol oleh Pengaturan Admin ON/OFF)

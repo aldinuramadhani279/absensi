@@ -59,10 +59,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     // Local state for interactive parts
     const [attendance, setAttendance] = useState<Attendance | null>(initialAttendance)
     const [selectedShift, setSelectedShift] = useState<string>("")
-    // [N-1] State untuk fitur ganti shift setelah clock out
-    const [showChangeShiftDialog, setShowChangeShiftDialog] = useState(false)
-    const [selectedNewShift, setSelectedNewShift] = useState<string>("")
-    const [isChangingShift, setIsChangingShift] = useState(false)
+    // [DOUBLE SHIFT] State untuk lanjut double shift (absen shift berikutnya tanpa hapus shift sebelumnya)
+    const [isDoubleShiftMode, setIsDoubleShiftMode] = useState(false)
 
     const [isClockingIn, setIsClockingIn] = useState(false)
     const [isClockingOut, setIsClockingOut] = useState(false)
@@ -280,6 +278,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
             });
             setShowStatusDialog(true);
             setAttendance(newAttendance);
+            setIsDoubleShiftMode(false);
             router.reload({ only: ['attendance'] });
         } catch (error: any) {
             toast({ variant: "destructive", title: "Clock In Gagal", description: error.response?.data?.message || "Error" });
@@ -417,9 +416,20 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                         <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-blue-600" />Status Absensi Hari Ini</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        {!attendance ? (
+                        {!attendance || (hasClockOut && isDoubleShiftMode) ? (
                             <div className="space-y-4">
-                                <p className="text-center text-muted-foreground">Anda belum melakukan clock in hari ini.</p>
+                                {isDoubleShiftMode && attendance && (
+                                    <Alert className="border-indigo-300 bg-indigo-50 text-indigo-900 text-left">
+                                        <RefreshCw className="h-4 w-4 text-indigo-600" />
+                                        <AlertDescription>
+                                            <strong>Mode Double Shift Active:</strong> Absensi <strong>{attendance.shift?.name}</strong> sebelumnya telah selesai dan tersimpan rapi di Riwayat. Silakan pilih shift baru di bawah ini untuk Clock In shift berikutnya.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+
+                                {!isDoubleShiftMode && (
+                                    <p className="text-center text-muted-foreground">Anda belum melakukan clock in hari ini.</p>
+                                )}
                                 
                                 {!isMobileDevice && (
                                     <Alert className="border-red-300 bg-red-50 text-red-800 text-left">
@@ -431,7 +441,9 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                 )}
 
                                 <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <Label htmlFor="shift" className="text-slate-700">1. Pilih Shift Kerja</Label>
+                                    <Label htmlFor="shift" className="text-slate-700">
+                                        {isDoubleShiftMode ? "1. Pilih Shift Berikutnya (Double Shift)" : "1. Pilih Shift Kerja"}
+                                    </Label>
                                     <Select value={selectedShift} onValueChange={setSelectedShift}>
                                         <SelectTrigger id="shift" className="bg-white"><SelectValue placeholder="Pilih shift kerja Anda" /></SelectTrigger>
                                         <SelectContent>
@@ -441,28 +453,33 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <Button onClick={() => openCaptureDialog("in")} disabled={isClockingIn} className="w-full h-12 text-md font-medium" size="lg">
-                                    {isClockingIn ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memproses...</> : <><Camera className="mr-2 h-5 w-5" />Ambil Foto & Clock In</>}
+                                <Button onClick={() => openCaptureDialog("in")} disabled={isClockingIn} className="w-full h-12 text-md font-medium bg-blue-600 hover:bg-blue-700" size="lg">
+                                    {isClockingIn ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memproses...</> : <><Camera className="mr-2 h-5 w-5" />{isDoubleShiftMode ? "Ambil Foto & Clock In Double Shift" : "Ambil Foto & Clock In"}</>}
                                 </Button>
+                                {isDoubleShiftMode && (
+                                    <Button variant="ghost" size="sm" onClick={() => setIsDoubleShiftMode(false)} className="w-full text-slate-500 hover:text-slate-700">
+                                        Batal Double Shift
+                                    </Button>
+                                )}
                             </div>
                         ) : hasClockOut ? (
                             <div className="text-center p-6 bg-green-50 rounded-xl border border-green-100">
                                 <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
                                 <h3 className="font-bold text-lg text-green-900">Absensi Selesai!</h3>
-                                <p className="text-green-700 text-sm mb-4">Terima kasih atas kerja keras Anda hari ini.</p>
+                                <p className="text-green-700 text-sm mb-4">Terima kasih atas kerja keras Anda di shift <strong>{attendance.shift?.name}</strong>.</p>
                                 <div className="grid grid-cols-2 gap-4 text-sm mt-2 bg-white/60 p-4 rounded-lg">
                                     <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Masuk</p><p className="font-bold text-lg">{new Date(attendance.clock_in).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</p></div>
                                     <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Pulang</p><p className="font-bold text-lg">{new Date(attendance.clock_out!).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</p></div>
                                 </div>
-                                {/* [N-1] Tombol Ganti Shift — muncul setelah clock out */}
+                                {/* [DOUBLE SHIFT] Tombol Lanjut Double Shift */}
                                 <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-4 gap-2 border-amber-300 text-amber-800 hover:bg-amber-50"
-                                    onClick={() => { setSelectedNewShift(""); setShowChangeShiftDialog(true) }}
+                                    variant="default"
+                                    size="lg"
+                                    className="mt-5 w-full gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm"
+                                    onClick={() => { setSelectedShift(""); setIsDoubleShiftMode(true) }}
                                 >
                                     <RefreshCw className="h-4 w-4" />
-                                    Ganti Shift
+                                    ➕ Lanjut Double Shift
                                 </Button>
                             </div>
                         ) : (
@@ -688,53 +705,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     </DialogContent>
                 </Dialog>
 
-                {/* [N-1] Dialog Ganti Shift setelah Clock Out */}
-                <Dialog open={showChangeShiftDialog} onOpenChange={setShowChangeShiftDialog}>
-                    <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                <RefreshCw className="h-5 w-5 text-amber-600" />
-                                Ganti Shift Kerja
-                            </DialogTitle>
-                            <DialogDescription>
-                                Pilih shift baru. Data clock out sebelumnya akan dihapus dan Anda bisa melakukan clock out ulang.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-2">
-                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                                <strong>⚠️ Perhatian:</strong> Riwayat clock out sebelumnya akan dihapus. Pastikan Anda memilih shift yang benar.
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Pilih Shift Baru</label>
-                                <Select value={selectedNewShift} onValueChange={setSelectedNewShift}>
-                                    <SelectTrigger className="bg-white">
-                                        <SelectValue placeholder="Pilih shift baru" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {shifts.map((shift) => (
-                                            <SelectItem key={shift.id} value={shift.id.toString()}>
-                                                {shift.name} ({shift.start_time.substring(0, 5)} - {shift.end_time.substring(0, 5)})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button variant="outline">Batal</Button>
-                            </DialogClose>
-                            <Button
-                                onClick={handleChangeShift}
-                                disabled={!selectedNewShift || isChangingShift}
-                                className="bg-amber-600 hover:bg-amber-700 text-white"
-                            >
-                                {isChangingShift ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                                Konfirmasi Ganti Shift
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+
 
 
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
@@ -14,48 +15,46 @@ class AdminController extends Controller
             ->get()
             ->map(function ($request) {
                 return [
-                    'id' => $request->id,
-                    'user_name' => $request->user->name,
-                    'user_email' => $request->user->email,
-                    'user_nip' => $request->user->nip,
+                    'id'               => $request->id,
+                    'user_name'        => $request->user->name,
+                    'user_email'       => $request->user->email,
+                    'user_nip'         => $request->user->nip,
                     'user_employee_id' => $request->user->employee_id,
-                    'requested_at' => $request->created_at->toIso8601String(),
-                    'status' => $request->status,
+                    'requested_at'     => $request->created_at->toIso8601String(),
+                    'status'           => $request->status,
                 ];
             });
 
         $today = now()->today();
-        $duplicateIpAlerts = \App\Models\Attendance::whereDate('created_at', $today)
+
+        // [FIX N-5] Ganti N+1 query dengan single query + PHP groupBy
+        // Sebelumnya: 1 query untuk list IP + N query per IP
+        // Sekarang: 1 query saja, diproses di PHP
+        $allDupAttendances = \App\Models\Attendance::whereDate('created_at', $today)
             ->whereNotNull('clock_in_ip')
-            ->select('clock_in_ip as ip_address', \DB::raw('count(*) as total'))
-            ->groupBy('clock_in_ip')
-            ->having('total', '>', 1)
+            ->with('user')
             ->get()
-            ->map(function ($dup) use ($today) {
-                $attendances = \App\Models\Attendance::where('clock_in_ip', $dup->ip_address)
-                    ->whereDate('created_at', $today)
-                    ->with('user')
-                    ->get();
-                
-                return [
-                    'ip_address' => $dup->ip_address,
-                    'total' => $dup->total,
-                    'users' => $attendances->map(function ($a) {
-                        return [
-                            'name' => $a->user->name ?? 'Unknown',
-                            'time' => $a->created_at->format('H:i:s'),
-                            'photo_in' => $a->photo_in,
-                        ];
-                    })
-                ];
-            });
+            ->groupBy('clock_in_ip')
+            ->filter(fn($group) => $group->count() > 1);
+
+        $duplicateIpAlerts = $allDupAttendances->map(function ($group, $ip) {
+            return [
+                'ip_address' => $ip,
+                'total'      => $group->count(),
+                'users'      => $group->map(fn($a) => [
+                    'name'     => $a->user->name ?? 'Unknown',
+                    'time'     => $a->created_at->format('H:i:s'),
+                    'photo_in' => $a->photo_in,
+                ])->values(),
+            ];
+        })->values();
 
         $blockDuplicateIp = \App\Models\Setting::get('block_duplicate_ip', '1') !== '0';
 
         return Inertia::render('Admin/Dashboard', [
-            'requests' => $requests,
+            'requests'          => $requests,
             'duplicateIpAlerts' => $duplicateIpAlerts,
-            'blockDuplicateIp' => $blockDuplicateIp,
+            'blockDuplicateIp'  => $blockDuplicateIp,
         ]);
     }
 
@@ -74,13 +73,13 @@ class AdminController extends Controller
             ->get()
             ->map(function ($request) {
                 return [
-                    'id' => $request->id,
-                    'user_name' => $request->user->name,
-                    'user_email' => $request->user->email,
-                    'user_nip' => $request->user->nip,
+                    'id'               => $request->id,
+                    'user_name'        => $request->user->name,
+                    'user_email'       => $request->user->email,
+                    'user_nip'         => $request->user->nip,
                     'user_employee_id' => $request->user->employee_id,
-                    'requested_at' => $request->created_at->toIso8601String(),
-                    'status' => $request->status,
+                    'requested_at'     => $request->created_at->toIso8601String(),
+                    'status'           => $request->status,
                 ];
             });
 
@@ -90,20 +89,23 @@ class AdminController extends Controller
     public function approvePasswordReset($id)
     {
         $request = \App\Models\PasswordResetRequest::findOrFail($id);
-        
+
         if ($request->status !== 'pending') {
-             return response()->json(['message' => 'Request already processed'], 400);
+            return response()->json(['message' => 'Request already processed'], 400);
         }
 
         $user = $request->user;
-        $user->password = \Illuminate\Support\Facades\Hash::make('12345678');
+
+        // [FIX N-4] Password default diambil dari config/env, tidak hard-coded
+        $defaultPassword = config('app.reset_password_default', '12345678');
+        $user->password = \Illuminate\Support\Facades\Hash::make($defaultPassword);
         $user->must_change_password = true;
         $user->save();
 
-        $request->status = 'approved';
+        $request->status      = 'approved';
         $request->approved_at = now();
         $request->save();
-        
+
         return response()->json(['message' => 'Success']);
     }
 

@@ -172,6 +172,9 @@ return [
 
     'wbs_hash' => env('WBS_SECURE_HASH', 'a7d8e9f2b3c4'),
 
+    // [N-4] Password default saat admin melakukan reset password karyawan
+    'reset_password_default' => env('RESET_PASSWORD_DEFAULT', '12345678'),
+
     /*
     |--------------------------------------------------------------------------
     | Class Aliases

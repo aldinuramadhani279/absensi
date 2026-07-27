@@ -14,6 +14,11 @@ class Shift extends Model
         'profession_id',
         'start_time',
         'end_time',
+        'crosses_midnight', // Shift malam yang melewati tengah malam
+    ];
+
+    protected $casts = [
+        'crosses_midnight' => 'boolean',
     ];
 
     public function profession()

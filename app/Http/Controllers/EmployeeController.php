@@ -16,17 +16,15 @@ class EmployeeController extends Controller
      */
     public function index()
     {
-        // Get all users except admins, or just standard users. 
-        // Assuming 'is_admin' false are employees.
         $employees = User::where('is_admin', false)
             ->with('profession')
             ->orderBy('created_at', 'desc')
             ->get();
-            
+
         $professions = Profession::all();
-        
+
         return Inertia::render('Admin/Employees/Index', [
-            'employees' => $employees,
+            'employees'   => $employees,
             'professions' => $professions
         ]);
     }
@@ -37,26 +35,26 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-            'status' => 'required|in:pns,non-pns,militer,pppk,pblu',
-            'profession_id' => 'required|exists:professions,id', // Make sure profession exists
-            'nip' => 'nullable|required_if:status,pns,pppk,militer|string', // NIP/NRP required if PNS/PPPK/Militer
-            'employee_id' => 'nullable|string', 
+            'name'          => 'required|string|max:255',
+            'email'         => 'required|string|email|max:255|unique:users',
+            'password'      => 'required|string|min:8',
+            'status'        => 'required|in:pns,non-pns,militer,pppk,pblu',
+            'profession_id' => 'required|exists:professions,id',
+            'nip'           => 'nullable|required_if:status,pns,pppk,militer|string',
+            'employee_id'   => 'nullable|string',
         ], [
             'nip.required_if' => 'NIP atau NRP wajib diisi untuk status PNS, PPPK, atau Militer.',
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'status' => $validated['status'],
+        User::create([
+            'name'          => $validated['name'],
+            'email'         => $validated['email'],
+            'password'      => Hash::make($validated['password']),
+            'status'        => $validated['status'],
             'profession_id' => $validated['profession_id'],
-            'nip' => $request->nip,
-            'employee_id' => $request->employee_id,
-            'is_admin' => false,
+            'nip'           => $request->nip,
+            'employee_id'   => $request->employee_id,
+            'is_admin'      => false,
         ]);
 
         return redirect()->back()->with('success', 'Karyawan berhasil ditambahkan.');
@@ -73,14 +71,17 @@ class EmployeeController extends Controller
 
     /**
      * Reset the password for the specified employee.
+     * [FIX N-4] Password default diambil dari config/env
      */
     public function resetPassword(User $employee)
     {
+        $defaultPassword = config('app.reset_password_default', '12345678');
+
         $employee->update([
-            'password' => Hash::make('12345678'),
+            'password'            => Hash::make($defaultPassword),
             'must_change_password' => true,
         ]);
 
-        return redirect()->back()->with('success', 'Password berhasil direset menjadi 12345678.');
+        return redirect()->back()->with('success', "Password berhasil direset menjadi {$defaultPassword}.");
     }
 }

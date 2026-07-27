@@ -16,13 +16,13 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
     public function __construct($professionId, $startDate, $endDate)
     {
         $this->professionId = $professionId;
-        $this->startDate = $startDate;
-        $this->endDate = $endDate;
+        $this->startDate    = $startDate;
+        $this->endDate      = $endDate;
     }
 
     /**
-    * @return \Illuminate\Support\Collection
-    */
+     * @return \Illuminate\Support\Collection
+     */
     public function collection()
     {
         // 1. Get Attendances
@@ -47,9 +47,8 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
         // 2. Get Travel Requests (Dinas)
         $trQuery = \App\Models\TravelRequest::where('status', 'approved')->with('user.profession');
 
-        // Filter by profession if needed (indirectly via user)
         if ($this->professionId) {
-             $trQuery->whereHas('user', function ($q) {
+            $trQuery->whereHas('user', function ($q) {
                 $q->where('profession_id', $this->professionId);
             });
         }
@@ -67,35 +66,31 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
         // 3. Expand Travel Requests into daily "Attendance-like" objects
         $dinasRows = collect();
         foreach ($travelRequests as $tr) {
-            // using Carbon to iterate
             $start = \Carbon\Carbon::parse($tr->start_date);
-            $end = \Carbon\Carbon::parse($tr->end_date);
-            
-            // Adjust start/end to fit within report range if needed
-            $reportStart = $this->startDate ? \Carbon\Carbon::parse($this->startDate) : $start;
-            $reportEnd = $this->endDate ? \Carbon\Carbon::parse($this->endDate) : $end;
+            $end   = \Carbon\Carbon::parse($tr->end_date);
 
-            // Iterate
+            $reportStart = $this->startDate ? \Carbon\Carbon::parse($this->startDate) : $start;
+            $reportEnd   = $this->endDate   ? \Carbon\Carbon::parse($this->endDate)   : $end;
+
             $current = $start->copy();
             while ($current->lte($end)) {
-                // Only include if within report range
                 if ($current->gte($reportStart) && $current->lte($reportEnd)) {
-                    $dummy = new Attendance();
-                    $dummy->user = $tr->user; // Manually assign relation
-                    $dummy->date = $current->format('Y-m-d');
-                    $dummy->clock_in = '-';
-                    $dummy->clock_out = '-';
-                    $dummy->status = 'Dinas Luar Kota';
-                    $dummy->notes = $tr->reason;
-                    // We can't easily assign shift unless we look it up, leave as null
-                    
+                    $dummy            = new Attendance();
+                    $dummy->user      = $tr->user;
+                    $dummy->date      = $current->format('Y-m-d');
+                    // [FIX N-3] Gunakan null bukan string '-' agar tidak crash di Carbon::parse
+                    $dummy->clock_in  = null;
+                    $dummy->clock_out = null;
+                    $dummy->status    = 'Dinas Luar Kota';
+                    $dummy->notes     = $tr->reason;
+                    $dummy->shift     = null;
+
                     $dinasRows->push($dummy);
                 }
                 $current->addDay();
             }
         }
 
-        // Merge and sort
         return $attendances->merge($dinasRows)->sortByDesc('date');
     }
 
@@ -117,17 +112,46 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
 
     public function map($attendance): array
     {
+        // [FIX N-3] Tangani clock_in/clock_out null dengan aman — tidak crash jika null/string '-'
+        $clockInFormatted  = null;
+        $clockOutFormatted = null;
+        $tanggal           = $attendance->date ?? null;
+
+        if ($attendance->clock_in && $attendance->clock_in !== '-') {
+            try {
+                $parsedIn         = \Carbon\Carbon::parse($attendance->clock_in);
+                $clockInFormatted  = $parsedIn->format('H:i:s');
+                if (!$tanggal) {
+                    $tanggal = $parsedIn->format('Y-m-d');
+                }
+            } catch (\Exception $e) {
+                $clockInFormatted = '-';
+            }
+        } else {
+            $clockInFormatted = '-';
+        }
+
+        if ($attendance->clock_out && $attendance->clock_out !== '-') {
+            try {
+                $clockOutFormatted = \Carbon\Carbon::parse($attendance->clock_out)->format('H:i:s');
+            } catch (\Exception $e) {
+                $clockOutFormatted = '-';
+            }
+        } else {
+            $clockOutFormatted = '-';
+        }
+
         return [
-            $attendance->user->name,
-            strtoupper($attendance->user->status ?? '-'),
-            $attendance->user->nip ?? $attendance->user->employee_id ?? '-',
-            $attendance->user->profession->name ?? '-',
-            $attendance->shift->name ?? '-',
-            $attendance->date ?? ($attendance->clock_in ? \Carbon\Carbon::parse($attendance->clock_in)->format('Y-m-d') : ($attendance->created_at ? $attendance->created_at->format('Y-m-d') : '-')),
-            $attendance->clock_in,
-            $attendance->clock_out,
-            $attendance->status,
-            $attendance->notes,
+            $attendance->user->name                                             ?? '-',
+            strtoupper($attendance->user->status                                ?? '-'),
+            $attendance->user->nip ?? $attendance->user->employee_id            ?? '-',
+            $attendance->user->profession->name                                  ?? '-',
+            $attendance->shift->name                                             ?? '-',
+            $tanggal                                                             ?? '-',
+            $clockInFormatted,
+            $clockOutFormatted,
+            $attendance->status                                                  ?? '-',
+            $attendance->notes                                                   ?? '-',
         ];
     }
 }

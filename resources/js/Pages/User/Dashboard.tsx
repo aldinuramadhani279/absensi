@@ -3,11 +3,11 @@ import { Head, router } from "@inertiajs/react"
 import { Button } from "@/Components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/Components/ui/card"
 import { Alert, AlertDescription } from "@/Components/ui/alert"
-import { Clock, LogOut, Clock3, Clock9, CheckCircle2, Loader2, History, FilePlus, Key, Frown, Smile, ThumbsUp, Camera, MapPin, AlertCircle } from "lucide-react"
+import { Clock, LogOut, Clock3, Clock9, CheckCircle2, Loader2, History, FilePlus, Key, Frown, Smile, ThumbsUp, Camera, MapPin, AlertCircle, RefreshCw } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { Label } from "@/Components/ui/label"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/Components/ui/dialog"
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/Components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/Components/ui/alert-dialog"
 import { Toaster } from "@/Components/ui/toaster"
 import axios from "axios"
@@ -59,6 +59,11 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     // Local state for interactive parts
     const [attendance, setAttendance] = useState<Attendance | null>(initialAttendance)
     const [selectedShift, setSelectedShift] = useState<string>("")
+    // [N-1] State untuk fitur ganti shift setelah clock out
+    const [showChangeShiftDialog, setShowChangeShiftDialog] = useState(false)
+    const [selectedNewShift, setSelectedNewShift] = useState<string>("")
+    const [isChangingShift, setIsChangingShift] = useState(false)
+
     const [isClockingIn, setIsClockingIn] = useState(false)
     const [isClockingOut, setIsClockingOut] = useState(false)
     const [isRequestingReset, setIsRequestingReset] = useState(false)
@@ -305,6 +310,28 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         }
     }
 
+    // [N-1] Handler ganti shift setelah clock out
+    const handleChangeShift = async () => {
+        if (!selectedNewShift) return
+        setIsChangingShift(true)
+        try {
+            const response = await axios.post("/api/shift-change", { shift_id: Number.parseInt(selectedNewShift) })
+            toast({ title: "Shift Berhasil Diganti!", description: response.data.message })
+            setShowChangeShiftDialog(false)
+            setSelectedNewShift("")
+            router.reload({
+                only: ['attendance'],
+                onSuccess: (page) => {
+                    setAttendance(page.props.attendance as Attendance)
+                }
+            })
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Gagal Ganti Shift", description: error.response?.data?.message || "Error" })
+        } finally {
+            setIsChangingShift(false)
+        }
+    }
+
     const handlePasswordResetRequest = async () => {
         setIsRequestingReset(true)
         try {
@@ -427,6 +454,16 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Masuk</p><p className="font-bold text-lg">{new Date(attendance.clock_in).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</p></div>
                                     <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Pulang</p><p className="font-bold text-lg">{new Date(attendance.clock_out!).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</p></div>
                                 </div>
+                                {/* [N-1] Tombol Ganti Shift — muncul setelah clock out */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-4 gap-2 border-amber-300 text-amber-800 hover:bg-amber-50"
+                                    onClick={() => { setSelectedNewShift(""); setShowChangeShiftDialog(true) }}
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                    Ganti Shift
+                                </Button>
                             </div>
                         ) : (
                             <div className="space-y-6">
@@ -470,7 +507,10 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                             <DialogHeader><DialogTitle>Konfirmasi Permintaan Reset Password</DialogTitle></DialogHeader>
                             <p>Admin akan menerima permintaan Anda untuk mereset password. Lanjutkan?</p>
                             <DialogFooter>
-                                <Button variant="outline">Batal</Button>
+                                {/* [FIX M-2] Tambah DialogClose agar tombol Batal bisa menutup dialog */}
+                                <DialogClose asChild>
+                                    <Button variant="outline">Batal</Button>
+                                </DialogClose>
                                 <Button onClick={handlePasswordResetRequest} disabled={isRequestingReset}>
                                     {isRequestingReset ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ya, Kirim Permintaan"}
                                 </Button>
@@ -644,6 +684,54 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                 </Button>
                             </DialogFooter>
                         </form>
+                    </DialogContent>
+                </Dialog>
+
+                {/* [N-1] Dialog Ganti Shift setelah Clock Out */}
+                <Dialog open={showChangeShiftDialog} onOpenChange={setShowChangeShiftDialog}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <RefreshCw className="h-5 w-5 text-amber-600" />
+                                Ganti Shift Kerja
+                            </DialogTitle>
+                            <DialogDescription>
+                                Pilih shift baru. Data clock out sebelumnya akan dihapus dan Anda bisa melakukan clock out ulang.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-2">
+                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                                <strong>⚠️ Perhatian:</strong> Riwayat clock out sebelumnya akan dihapus. Pastikan Anda memilih shift yang benar.
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700">Pilih Shift Baru</label>
+                                <Select value={selectedNewShift} onValueChange={setSelectedNewShift}>
+                                    <SelectTrigger className="bg-white">
+                                        <SelectValue placeholder="Pilih shift baru" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {shifts.map((shift) => (
+                                            <SelectItem key={shift.id} value={shift.id.toString()}>
+                                                {shift.name} ({shift.start_time.substring(0, 5)} - {shift.end_time.substring(0, 5)})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button variant="outline">Batal</Button>
+                            </DialogClose>
+                            <Button
+                                onClick={handleChangeShift}
+                                disabled={!selectedNewShift || isChangingShift}
+                                className="bg-amber-600 hover:bg-amber-700 text-white"
+                            >
+                                {isChangingShift ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                                Konfirmasi Ganti Shift
+                            </Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
 

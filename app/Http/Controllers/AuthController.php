@@ -23,26 +23,30 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
+            'email'    => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-        // Attempt to log in
         if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
             $request->session()->regenerate();
-            
+
+            // [FIX C-2] Hapus stored intended URL agar session admin lama tidak
+            // mem-redirect user biasa ke halaman admin
+            $request->session()->forget('url.intended');
+
             $user = Auth::user();
-            
-            // Check for force password change
+
+            // Cek paksa ganti password
             if ($user->must_change_password) {
-                 return redirect()->intended('/password/force-change');
+                return redirect('/password/force-change');
             }
-            
-            // Admin Logic
+
+            // [FIX C-2] Gunakan redirect eksplisit berdasarkan role, BUKAN redirect()->intended()
+            // intended() bisa mengambil URL admin dari session sebelumnya
             if ($user->is_admin) {
-                return redirect()->intended('/admin');
+                return redirect('/admin');
             } else {
-                return redirect()->intended('/home');
+                return redirect('/home');
             }
         }
 
@@ -54,28 +58,26 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
+            'name'          => 'required|string|max:255',
+            'email'         => 'required|string|email|max:255|unique:users',
+            'password'      => 'required|string|min:8|confirmed',
             'profession_id' => 'required|exists:professions,id',
-            'status' => 'required|in:pns,non-pns,militer,pppk,pblu',
-            'nip' => 'nullable|required_if:status,pns,pppk,militer|string|max:255',
+            'status'        => 'required|in:pns,non-pns,militer,pppk,pblu',
+            'nip'           => 'nullable|required_if:status,pns,pppk,militer|string|max:255',
         ], [
             'nip.required_if' => 'NIP atau NRP wajib diisi untuk status PNS, PPPK, atau Militer.',
         ]);
 
         $user = \App\Models\User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'name'          => $validated['name'],
+            'email'         => $validated['email'],
+            'password'      => \Illuminate\Support\Facades\Hash::make($validated['password']),
             'profession_id' => $validated['profession_id'],
-            'status' => $validated['status'],
-            'nip' => $validated['nip'],
-            'is_admin' => false,
+            'status'        => $validated['status'],
+            'nip'           => $validated['nip'],
+            'is_admin'      => false,
         ]);
 
-        // Auth::login($user); // Disable auto-login to enforce IP check on login
-        
         return redirect('/login')->with('success', 'Registrasi berhasil! Silakan login.');
     }
 

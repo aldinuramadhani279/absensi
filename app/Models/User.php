@@ -27,6 +27,7 @@ class User extends Authenticatable
         'nip',
         'employee_id',
         'is_admin',
+        'must_change_password', // [FIX M-1] Tambahkan agar mass assignment bisa digunakan
     ];
 
     /**

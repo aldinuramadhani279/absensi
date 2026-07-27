@@ -36,17 +36,15 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'name'          => 'required|string|max:255',
             'profession_id' => 'required|exists:professions,id',
-            'nip'           => [
-                'nullable',
-                'string',
-                'max:255',
-            ],
+            'status'        => 'required|in:pns,non-pns,militer,pppk,pblu',
+            'nip'           => 'nullable|string|max:255',
             'employee_id'   => 'nullable|string|max:255',
         ]);
 
         $user->update([
             'name'          => $validated['name'],
             'profession_id' => $validated['profession_id'],
+            'status'        => $validated['status'],
             'nip'           => $validated['nip'] ?? null,
             'employee_id'   => $validated['employee_id'] ?? null,
         ]);

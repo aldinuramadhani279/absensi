@@ -51,6 +51,7 @@ export default function ProfilePage({ user, professions, flash }: Props) {
     const [professionId, setProfessionId] = useState(user.profession_id?.toString() ?? "")
     const [nip, setNip] = useState(user.nip ?? "")
     const [employeeId, setEmployeeId] = useState(user.employee_id ?? "")
+    const [status, setStatus] = useState(user.status ?? "")
     const [isSaving, setIsSaving] = useState(false)
 
     // Password dialog state
@@ -76,6 +77,7 @@ export default function ProfilePage({ user, professions, flash }: Props) {
             profession_id: professionId,
             nip: nip || null,
             employee_id: employeeId || null,
+            status,
         }, {
             onSuccess: () => {
                 toast({ title: "✅ Profil Berhasil Disimpan!", description: "Data profil Anda telah diperbarui." })
@@ -271,13 +273,21 @@ export default function ProfilePage({ user, professions, flash }: Props) {
                                 />
                             </div>
 
-                            {/* Status (read-only) */}
+                            {/* Status Kepegawaian */}
                             <div className="space-y-1.5">
-                                <Label className="text-sm font-medium text-slate-700">Status Kepegawaian</Label>
-                                <div className="flex h-10 w-full rounded-lg border border-slate-100 bg-slate-50 px-3 items-center text-sm text-slate-500 select-none">
-                                    {statusLabel}
-                                    <span className="ml-auto text-xs text-slate-400 bg-slate-200 px-2 py-0.5 rounded">Tidak bisa diubah</span>
-                                </div>
+                                <Label htmlFor="status" className="text-sm font-medium text-slate-700">
+                                    Status Kepegawaian <span className="text-red-500">*</span>
+                                </Label>
+                                <Select value={status} onValueChange={setStatus}>
+                                    <SelectTrigger id="status" className="bg-white focus:ring-blue-100 focus:border-blue-400">
+                                        <SelectValue placeholder="Pilih status kepegawaian" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                                            <SelectItem key={val} value={val}>{label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <Button

@@ -116,8 +116,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
             img.onload = () => {
                 const canvas = canvasRef.current || document.createElement('canvas');
                 
-                // Perkecil ukuran gambar agar upload enteng (max 1280px)
-                const maxDim = 1280;
+                // Perkecil ukuran gambar agar super enteng & instan (< 40KB)
+                const maxDim = 640;
                 let width = img.width;
                 let height = img.height;
                 if (width > maxDim || height > maxDim) {
@@ -139,12 +139,12 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     // Tambahkan Watermark
                     const dateStr = new Date().toLocaleString("id-ID");
                     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-                    ctx.fillRect(10, canvas.height - 40, 300, 30);
-                    ctx.font = "16px sans-serif";
+                    ctx.fillRect(10, canvas.height - 35, Math.min(260, canvas.width - 20), 25);
+                    ctx.font = "12px sans-serif";
                     ctx.fillStyle = "white";
-                    ctx.fillText(`Waktu: ${dateStr}`, 20, canvas.height - 20);
+                    ctx.fillText(`Waktu: ${dateStr}`, 15, canvas.height - 18);
 
-                    const photoBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                    const photoBase64 = canvas.toDataURL('image/jpeg', 0.65);
                     
                     // Reset input file agar bisa digunakan lagi
                     e.target.value = "";
@@ -226,8 +226,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         let width = video.videoWidth || 640;
         let height = video.videoHeight || 480;
 
-        // Perkecil ukuran gambar ke max 1280px agar upload instan (< 200KB)
-        const maxDim = 1280;
+        // Perkecil ukuran gambar ke max 640px agar upload instan (< 40KB)
+        const maxDim = 640;
         if (width > maxDim || height > maxDim) {
             if (width > height) {
                 height = Math.round((height * maxDim) / width);
@@ -249,13 +249,13 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         // Add Watermark overlay
         const dateStr = new Date().toLocaleString("id-ID");
         ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.fillRect(10, canvas.height - 40, Math.min(300, canvas.width - 20), 30);
-        ctx.font = "14px sans-serif";
+        ctx.fillRect(10, canvas.height - 35, Math.min(260, canvas.width - 20), 25);
+        ctx.font = "12px sans-serif";
         ctx.fillStyle = "white";
-        ctx.fillText(`Waktu: ${dateStr}`, 20, canvas.height - 20);
+        ctx.fillText(`Waktu: ${dateStr}`, 15, canvas.height - 18);
 
-        // Convert to optimized compressed JPEG (0.75 quality ~100-200KB vs 15MB PNG)
-        const photoBase64 = canvas.toDataURL('image/jpeg', 0.75);
+        // Convert to super compressed JPEG (0.65 quality ~30-40KB)
+        const photoBase64 = canvas.toDataURL('image/jpeg', 0.65);
 
         // Stop camera & close dialog
         stopCamera();
@@ -279,7 +279,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 latitude: lat,
                 longitude: lng
             }, {
-                timeout: 25000 // 25 seconds timeout safeguard
+                timeout: 45000 // 45 seconds timeout safeguard for slow mobile networks
             });
 
             const newAttendance = response.data.attendance;
@@ -296,7 +296,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         } catch (error: any) {
             let errorMsg = "Terjadi kesalahan jaringan saat absensi.";
             if (error.code === 'ECONNABORTED') {
-                errorMsg = "Koneksi lambat/timeout. Silakan coba lagi.";
+                errorMsg = "Koneksi jaringan sangat lambat. Silakan periksa sinyal HP Anda dan coba lagi.";
             } else if (error.response?.data?.message) {
                 errorMsg = error.response.data.message;
             } else if (error.response?.status === 413) {
@@ -316,7 +316,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 latitude: lat,
                 longitude: lng
             }, {
-                timeout: 25000 // 25 seconds timeout safeguard
+                timeout: 45000 // 45 seconds timeout safeguard
             });
             toast({ title: "Clock Out Berhasil!" });
             router.reload({
@@ -328,7 +328,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         } catch (error: any) {
             let errorMsg = "Terjadi kesalahan jaringan saat absensi.";
             if (error.code === 'ECONNABORTED') {
-                errorMsg = "Koneksi lambat/timeout. Silakan coba lagi.";
+                errorMsg = "Koneksi jaringan sangat lambat. Silakan periksa sinyal HP Anda dan coba lagi.";
             } else if (error.response?.data?.message) {
                 errorMsg = error.response.data.message;
             } else if (error.response?.status === 413) {

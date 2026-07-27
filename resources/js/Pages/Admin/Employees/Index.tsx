@@ -16,17 +16,23 @@ interface Profession {
     name: string;
 }
 
+interface EmploymentStatus {
+    id: number;
+    name: string;
+    code: string;
+}
+
 interface User {
     id: number;
     name: string;
     email: string;
-    status: 'pns' | 'non-pns' | 'militer' | 'pppk' | 'pblu';
+    status: string;
     nip?: string;
     employee_id?: string;
     profession: { id: number; name: string };
 }
 
-export default function EmployeesIndex({ employees, professions }: { employees: User[], professions: Profession[] }) {
+export default function EmployeesIndex({ employees, professions, employmentStatuses = [] }: { employees: User[], professions: Profession[], employmentStatuses?: EmploymentStatus[] }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
@@ -147,11 +153,19 @@ export default function EmployeesIndex({ employees, professions }: { employees: 
                                         <Select onValueChange={(v) => setData('status', v)} value={data.status}>
                                             <SelectTrigger id="status"><SelectValue placeholder="Pilih Status" /></SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="pns">PNS</SelectItem>
-                                                <SelectItem value="non-pns">Non-PNS</SelectItem>
-                                                <SelectItem value="militer">Militer</SelectItem>
-                                                <SelectItem value="pppk">PPPK</SelectItem>
-                                                <SelectItem value="pblu">PBLU</SelectItem>
+                                                {employmentStatuses.length > 0 ? (
+                                                    employmentStatuses.map(st => (
+                                                        <SelectItem key={st.id} value={st.code || st.name.toLowerCase()}>{st.name}</SelectItem>
+                                                    ))
+                                                ) : (
+                                                    <>
+                                                        <SelectItem value="pns">PNS</SelectItem>
+                                                        <SelectItem value="non-pns">Non-PNS</SelectItem>
+                                                        <SelectItem value="militer">Militer</SelectItem>
+                                                        <SelectItem value="pppk">PPPK</SelectItem>
+                                                        <SelectItem value="pblu">PBLU</SelectItem>
+                                                    </>
+                                                )}
                                             </SelectContent>
                                         </Select>
                                         {errors.status && <p className="text-sm text-red-500">{errors.status}</p>}

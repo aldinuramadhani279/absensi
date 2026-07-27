@@ -29,13 +29,20 @@ interface UserProfile {
     profession: Profession | null
 }
 
+interface EmploymentStatusItem {
+    id: number
+    name: string
+    code?: string
+}
+
 interface Props {
     user: UserProfile
     professions: Profession[]
+    employmentStatuses?: EmploymentStatusItem[]
     flash?: { success?: string; error?: string }
 }
 
-const STATUS_LABELS: Record<string, string> = {
+const DEFAULT_STATUS_LABELS: Record<string, string> = {
     pns: "PNS",
     "non-pns": "Non-PNS",
     militer: "Militer / TNI-Polri",
@@ -43,7 +50,7 @@ const STATUS_LABELS: Record<string, string> = {
     pblu: "PBLU",
 }
 
-export default function ProfilePage({ user, professions, flash }: Props) {
+export default function ProfilePage({ user, professions, employmentStatuses = [], flash }: Props) {
     const { toast } = useToast()
 
     // Form state
@@ -283,9 +290,15 @@ export default function ProfilePage({ user, professions, flash }: Props) {
                                         <SelectValue placeholder="Pilih status kepegawaian" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {Object.entries(STATUS_LABELS).map(([val, label]) => (
-                                            <SelectItem key={val} value={val}>{label}</SelectItem>
-                                        ))}
+                                        {employmentStatuses.length > 0 ? (
+                                            employmentStatuses.map((st) => (
+                                                <SelectItem key={st.id} value={st.code || st.name.toLowerCase()}>{st.name}</SelectItem>
+                                            ))
+                                        ) : (
+                                            Object.entries(DEFAULT_STATUS_LABELS).map(([val, label]) => (
+                                                <SelectItem key={val} value={val}>{label}</SelectItem>
+                                            ))
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use App\Models\Profession;
+use App\Models\EmploymentStatus;
 
 class ProfileController extends Controller
 {
@@ -16,12 +17,14 @@ class ProfileController extends Controller
      */
     public function index()
     {
-        $user       = Auth::user()->load('profession');
-        $professions = Profession::orderBy('name')->get(['id', 'name']);
+        $user               = Auth::user()->load('profession');
+        $professions        = Profession::orderBy('name')->get(['id', 'name']);
+        $employmentStatuses = EmploymentStatus::orderBy('name')->get(['id', 'name', 'code']);
 
         return Inertia::render('User/Profile', [
-            'user'        => $user,
-            'professions' => $professions,
+            'user'               => $user,
+            'professions'        => $professions,
+            'employmentStatuses' => $employmentStatuses,
         ]);
     }
 
@@ -36,7 +39,7 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'name'          => 'required|string|max:255',
             'profession_id' => 'required|exists:professions,id',
-            'status'        => 'required|in:pns,non-pns,militer,pppk,pblu',
+            'status'        => 'required|string|max:255',
             'nip'           => 'nullable|string|max:255',
             'employee_id'   => 'nullable|string|max:255',
         ]);

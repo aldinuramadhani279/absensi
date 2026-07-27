@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Profession;
+use App\Models\EmploymentStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -22,10 +23,12 @@ class EmployeeController extends Controller
             ->get();
 
         $professions = Profession::all();
+        $employmentStatuses = EmploymentStatus::orderBy('name')->get();
 
         return Inertia::render('Admin/Employees/Index', [
-            'employees'   => $employees,
-            'professions' => $professions
+            'employees'          => $employees,
+            'professions'        => $professions,
+            'employmentStatuses' => $employmentStatuses,
         ]);
     }
 
@@ -38,12 +41,10 @@ class EmployeeController extends Controller
             'name'          => 'required|string|max:255',
             'email'         => 'required|string|email|max:255|unique:users',
             'password'      => 'required|string|min:8',
-            'status'        => 'required|in:pns,non-pns,militer,pppk,pblu',
+            'status'        => 'required|string|max:255',
             'profession_id' => 'required|exists:professions,id',
-            'nip'           => 'nullable|required_if:status,pns,pppk,militer|string',
+            'nip'           => 'nullable|string',
             'employee_id'   => 'nullable|string',
-        ], [
-            'nip.required_if' => 'NIP atau NRP wajib diisi untuk status PNS, PPPK, atau Militer.',
         ]);
 
         User::create([

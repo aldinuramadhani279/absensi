@@ -66,6 +66,7 @@ Route::middleware(['auth', 'is.admin'])->prefix('admin')->group(function () {
 
     // Resource routes for master data
     Route::resource('professions', App\Http\Controllers\ProfessionController::class)->except(['create', 'edit', 'show', 'update']);
+    Route::resource('employment-statuses', App\Http\Controllers\EmploymentStatusController::class)->except(['create', 'edit', 'show', 'update']);
     Route::resource('shifts', App\Http\Controllers\ShiftController::class)->except(['create', 'edit', 'show', 'update']);
 
     Route::resource('employees', App\Http\Controllers\EmployeeController::class)->except(['create', 'edit', 'show', 'update']);

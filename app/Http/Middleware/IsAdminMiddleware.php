@@ -16,8 +16,16 @@ class IsAdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!Auth::check() || !Auth::user()->is_admin) {
-            abort(403, 'Anda tidak memiliki akses ke halaman ini.');
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        if (!Auth::user()->is_admin) {
+            // Hapus url.intended agar session tidak terjebak mengarahkan kembali ke /admin
+            $request->session()->forget('url.intended');
+
+            // Redirect user biasa ke dashboard mereka (/home) dengan pesan error flash
+            return redirect('/home')->with('error', 'Anda tidak memiliki akses ke halaman Admin.');
         }
 
         return $next($request);

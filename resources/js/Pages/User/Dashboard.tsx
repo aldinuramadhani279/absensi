@@ -53,7 +53,7 @@ interface DashboardProps {
 
 // Utility functions (jika ada)
 
-export default function EmployeeDashboard({ auth, attendance: initialAttendance, shifts, has_forgot_clock_out, has_duplicate_ip = false, duplicate_ip_users = [] }: DashboardProps) {
+export default function EmployeeDashboard({ auth, attendance: initialAttendance, shifts, has_forgot_clock_out, has_duplicate_ip = false, duplicate_ip_users = [], flash }: DashboardProps) {
     const { toast } = useToast()
 
     // [DOUBLE SHIFT] State untuk lanjut double shift (absen shift berikutnya tanpa hapus shift sebelumnya)
@@ -437,6 +437,20 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
             </header>
 
             <main className="container mx-auto px-4 py-6 max-w-2xl">
+                {flash?.error && (
+                    <Alert className="mb-6 border-red-300 bg-red-50 text-red-800">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <AlertDescription className="font-medium">{flash.error}</AlertDescription>
+                    </Alert>
+                )}
+
+                {flash?.success && (
+                    <Alert className="mb-6 border-green-300 bg-green-50 text-green-800">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="font-medium">{flash.success}</AlertDescription>
+                    </Alert>
+                )}
+
                 <Card className="mb-6 shadow-sm text-center">
                     <CardHeader>
                         <CardTitle className="text-2xl">Selamat Datang, {user.name} {user.profession?.name ? `- ${user.profession.name}` : ''}!</CardTitle>

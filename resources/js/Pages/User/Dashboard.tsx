@@ -56,6 +56,10 @@ interface DashboardProps {
 export default function EmployeeDashboard({ auth, attendance: initialAttendance, shifts, has_forgot_clock_out, has_duplicate_ip = false, duplicate_ip_users = [], flash }: DashboardProps) {
     const { toast } = useToast()
 
+    // Local state
+    const [attendance, setAttendance] = useState<Attendance | null>(initialAttendance)
+    const [selectedShift, setSelectedShift] = useState<string>("")
+
     // [DOUBLE SHIFT] State untuk lanjut double shift (absen shift berikutnya tanpa hapus shift sebelumnya)
     const [isDoubleShiftMode, setIsDoubleShiftMode] = useState(false)
     const [submitProgressText, setSubmitProgressText] = useState<string>("")

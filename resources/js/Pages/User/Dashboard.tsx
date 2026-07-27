@@ -92,8 +92,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     const fileInputRef = useRef<HTMLInputElement>(null)
     const actionTypeRef = useRef<"in" | "out" | null>(null)
 
-    const user = auth.user;
-    const hasClockOut = attendance?.clock_out !== null
+    const user = auth?.user;
+    const hasClockOut = Boolean(attendance && attendance.clock_out !== null);
 
     // Stop camera stream
     const stopCamera = () => {
@@ -453,7 +453,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
 
                 <Card className="mb-6 shadow-sm text-center">
                     <CardHeader>
-                        <CardTitle className="text-2xl">Selamat Datang, {user.name} {user.profession?.name ? `- ${user.profession.name}` : ''}!</CardTitle>
+                        <CardTitle className="text-2xl">Selamat Datang, {user?.name ?? ''} {user?.profession?.name ? `- ${user.profession.name}` : ''}!</CardTitle>
                         <CardDescription>
                             {new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
                         </CardDescription>
@@ -464,7 +464,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     <Alert className="mb-6 border-amber-300 bg-amber-50 text-amber-800">
                         <AlertCircle className="h-4 w-4 text-amber-600" />
                         <AlertDescription>
-                            <strong>Warning:</strong> Koneksi IP Anda terdeteksi sama dengan karyawan lain hari ini ({duplicate_ip_users.join(', ')}). Harap pastikan Anda melakukan absensi secara mandiri.
+                            <strong>Warning:</strong> Koneksi IP Anda terdeteksi sama dengan karyawan lain hari ini ({(duplicate_ip_users || []).join(', ')}). Harap pastikan Anda melakukan absensi secara mandiri.
                         </AlertDescription>
                     </Alert>
                 )}
@@ -512,7 +512,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     <Select value={selectedShift} onValueChange={setSelectedShift}>
                                         <SelectTrigger id="shift" className="bg-white"><SelectValue placeholder="Pilih shift kerja Anda" /></SelectTrigger>
                                         <SelectContent>
-                                            {shifts.map((shift) => (
+                                            {(shifts || []).map((shift) => (
                                                 <SelectItem key={shift.id} value={shift.id.toString()}>{shift.name} ({shift.start_time.substring(0, 5)} - {shift.end_time.substring(0, 5)})</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -527,14 +527,14 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     </Button>
                                 )}
                             </div>
-                        ) : hasClockOut ? (
+                        ) : hasClockOut && attendance ? (
                             <div className="text-center p-6 bg-green-50 rounded-xl border border-green-100">
                                 <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
                                 <h3 className="font-bold text-lg text-green-900">Absensi Selesai!</h3>
                                 <p className="text-green-700 text-sm mb-4">Terima kasih atas kerja keras Anda di shift <strong>{attendance.shift?.name}</strong>.</p>
                                 <div className="grid grid-cols-2 gap-4 text-sm mt-2 bg-white/60 p-4 rounded-lg">
-                                    <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Masuk</p><p className="font-bold text-lg">{new Date(attendance.clock_in).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</p></div>
-                                    <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Pulang</p><p className="font-bold text-lg">{new Date(attendance.clock_out!).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</p></div>
+                                    <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Masuk</p><p className="font-bold text-lg">{attendance.clock_in ? new Date(attendance.clock_in).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : '-'}</p></div>
+                                    <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Pulang</p><p className="font-bold text-lg">{attendance.clock_out ? new Date(attendance.clock_out).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : '-'}</p></div>
                                 </div>
                                 {/* [DOUBLE SHIFT] Tombol Lanjut Double Shift */}
                                 <Button
@@ -547,11 +547,11 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     ➕ Lanjut Double Shift
                                 </Button>
                             </div>
-                        ) : (
+                        ) : attendance ? (
                             <div className="space-y-6">
                                 <div className="text-center p-6 bg-blue-50/80 rounded-xl border border-blue-100">
                                     <p className="text-sm text-blue-800/70 font-medium uppercase tracking-wider mb-1">Waktu Masuk</p>
-                                    <p className="text-4xl font-black text-blue-900 tracking-tight">{new Date(attendance.clock_in).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</p>
+                                    <p className="text-4xl font-black text-blue-900 tracking-tight">{attendance.clock_in ? new Date(attendance.clock_in).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : '-'}</p>
                                     {/* Show status badge if available */}
                                     {attendance.status && (
                                         <div className={`mt-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${attendance.status === 'terlambat' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'
@@ -575,7 +575,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     <p className="text-xs text-center text-muted-foreground mt-2">Pastikan Anda berada di area Rumah Sakit untuk melakukan absen pulang.</p>
                                 </div>
                             </div>
-                        )}
+                        ) : null}
                     </CardContent>
                 </Card>
 

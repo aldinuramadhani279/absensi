@@ -525,7 +525,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                         <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-blue-600" />Status Absensi Hari Ini</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        {!attendance || (hasClockOut && isDoubleShiftMode) ? (
+                        {!attendance || (hasClockOut && isDoubleShiftMode) || (hasClockOut && !isDoubleShiftAvailable) ? (
                             <div className="space-y-4">
                                 {isDoubleShiftMode && attendance && (
                                     <Alert className="border-indigo-300 bg-indigo-50 text-indigo-900 text-left">

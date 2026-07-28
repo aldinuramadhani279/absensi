@@ -51,10 +51,32 @@ class AdminController extends Controller
 
         $blockDuplicateIp = \App\Models\Setting::get('block_duplicate_ip', '1') !== '0';
 
+        // [FITUR SHIFT CUSTOM ALERT] Karyawan yang absen pakai Shift Custom hari ini
+        $customShiftAlerts = \App\Models\Attendance::whereDate('created_at', $today)
+            ->where(function ($q) {
+                $q->whereNotNull('custom_shift_start')
+                  ->orWhereNull('shift_id');
+            })
+            ->with(['user.profession'])
+            ->orderBy('clock_in', 'desc')
+            ->get()
+            ->map(function ($att) {
+                return [
+                    'id'                 => $att->id,
+                    'user_name'          => optional($att->user)->name ?? 'Unknown',
+                    'user_profession'    => optional(optional($att->user)->profession)->name ?? '-',
+                    'custom_shift_start' => $att->custom_shift_start ?? '-',
+                    'custom_shift_end'   => $att->custom_shift_end ?? '-',
+                    'clock_in'           => $att->clock_in ? \Carbon\Carbon::parse($att->clock_in)->format('H:i') : '-',
+                    'photo_in'           => $att->photo_in,
+                ];
+            });
+
         return Inertia::render('Admin/Dashboard', [
-            'requests'          => $requests,
-            'duplicateIpAlerts' => $duplicateIpAlerts,
-            'blockDuplicateIp'  => $blockDuplicateIp,
+            'requests'           => $requests,
+            'duplicateIpAlerts'  => $duplicateIpAlerts,
+            'blockDuplicateIp'   => $blockDuplicateIp,
+            'customShiftAlerts'  => $customShiftAlerts,
         ]);
     }
 

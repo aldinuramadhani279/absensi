@@ -140,6 +140,8 @@ class ReportController extends Controller
                 'user_id' => $att->user_id,
                 'user' => $att->user,
                 'shift' => $att->shift,
+                'custom_shift_start' => $att->custom_shift_start,
+                'custom_shift_end' => $att->custom_shift_end,
                 'clock_in' => $att->clock_in,
                 'clock_out' => $att->clock_out,
                 'status' => $att->is_auto_closed ? $att->status . ' (Auto-Closed)' : $att->status,

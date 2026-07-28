@@ -298,6 +298,7 @@ export default function ReportsIndex(props: any) {
                                         <TableRow>
                                             <TableHead>Karyawan</TableHead>
                                             <TableHead>Jabatan</TableHead>
+                                            <TableHead>Shift</TableHead>
                                             <TableHead>Tanggal</TableHead>
                                             <TableHead>Jam Masuk</TableHead>
                                             <TableHead>IP Address</TableHead>
@@ -309,7 +310,7 @@ export default function ReportsIndex(props: any) {
                                     <TableBody>
                                         {paginatedAttendances.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                                                     Tidak ada data untuk ditampilkan.
                                                 </TableCell>
                                             </TableRow>
@@ -338,6 +339,15 @@ export default function ReportsIndex(props: any) {
                                                         )}
                                                     </TableCell>
                                                     <TableCell>{att.user?.profession?.name || '-'}</TableCell>
+                                                    <TableCell>
+                                                         {att.custom_shift_start ? (
+                                                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                                                 ⏰ Custom ({att.custom_shift_start} - {att.custom_shift_end})
+                                                             </span>
+                                                         ) : (
+                                                             att.shift?.name || '-'
+                                                         )}
+                                                     </TableCell>
                                                     <TableCell>
                                                         {format(new Date(att.clock_in && att.clock_in !== '-' ? att.clock_in : att.created_at || new Date()), 'dd MMM yyyy')}
                                                     </TableCell>

@@ -167,36 +167,56 @@ export default function AdminLeavesIndex({ admin_leaves, users, filters }: Props
                                     <User className="inline h-4 w-4 mr-1" />
                                     Karyawan <span className="text-red-500">*</span>
                                 </Label>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                                    <Input
-                                        placeholder="Cari nama atau email karyawan..."
-                                        value={userSearch}
-                                        onChange={e => setUserSearch(e.target.value)}
-                                        className="pl-9"
-                                    />
-                                </div>
-                                {userSearch && (
-                                    <div className="border rounded-lg max-h-48 overflow-y-auto bg-white shadow-sm">
-                                        {filteredUsers.length === 0 ? (
-                                            <p className="p-3 text-sm text-slate-400 text-center">Karyawan tidak ditemukan</p>
-                                        ) : filteredUsers.map(u => (
-                                            <button
-                                                key={u.id}
-                                                type="button"
-                                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-indigo-50 transition-colors ${selectedUser === String(u.id) ? "bg-indigo-100 font-semibold" : ""}`}
-                                                onClick={() => { setSelectedUser(String(u.id)); setUserSearch(u.name) }}
-                                            >
-                                                <span className="font-medium">{u.name}</span>
-                                                <span className="text-slate-400 ml-2 text-xs">{u.email}</span>
-                                            </button>
-                                        ))}
+                                {selectedUser ? (
+                                    <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                                        <div>
+                                            <p className="font-semibold text-sm text-indigo-900">
+                                                ✓ {users.find(u => String(u.id) === selectedUser)?.name}
+                                            </p>
+                                            <p className="text-xs text-indigo-600">
+                                                {users.find(u => String(u.id) === selectedUser)?.email}
+                                            </p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-slate-500 hover:text-red-600"
+                                            onClick={() => { setSelectedUser(""); setUserSearch(""); }}
+                                        >
+                                            Ganti
+                                        </Button>
                                     </div>
-                                )}
-                                {selectedUser && !userSearch.includes("@") && (
-                                    <p className="text-xs text-indigo-600 font-medium">
-                                        ✓ Dipilih: {users.find(u => String(u.id) === selectedUser)?.name}
-                                    </p>
+                                ) : (
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                        <Input
+                                            placeholder="Ketik nama atau email karyawan..."
+                                            value={userSearch}
+                                            onChange={e => setUserSearch(e.target.value)}
+                                            className="pl-9"
+                                        />
+                                        {userSearch && (
+                                            <div className="absolute z-20 left-0 right-0 top-full mt-1 border rounded-lg max-h-56 overflow-y-auto bg-white shadow-lg">
+                                                {filteredUsers.length === 0 ? (
+                                                    <p className="p-3 text-sm text-slate-400 text-center">Karyawan tidak ditemukan</p>
+                                                ) : filteredUsers.map(u => (
+                                                    <button
+                                                        key={u.id}
+                                                        type="button"
+                                                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-indigo-50 transition-colors border-b last:border-b-0 flex justify-between items-center"
+                                                        onClick={() => {
+                                                            setSelectedUser(String(u.id));
+                                                            setUserSearch("");
+                                                        }}
+                                                    >
+                                                        <span className="font-medium text-slate-800">{u.name}</span>
+                                                        <span className="text-slate-400 text-xs">{u.email}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                             </div>
 

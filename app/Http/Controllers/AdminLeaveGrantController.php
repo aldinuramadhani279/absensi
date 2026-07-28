@@ -30,7 +30,6 @@ class AdminLeaveGrantController extends Controller
 
         // Semua user non-admin untuk dropdown pencarian
         $users = User::where('is_admin', 0)
-            ->where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 

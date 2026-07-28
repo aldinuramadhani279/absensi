@@ -40,14 +40,26 @@ interface DuplicateIpAlert {
     users: DuplicateIpUser[]
 }
 
+interface CustomShiftAlert {
+    id: number
+    user_name: string
+    user_profession: string
+    custom_shift_start: string
+    custom_shift_end: string
+    clock_in: string
+    photo_in?: string | null
+}
+
 export default function AdminDashboard({ 
     requests: initialRequests,
     duplicateIpAlerts = [],
-    blockDuplicateIp = true
+    blockDuplicateIp = true,
+    customShiftAlerts = []
 }: { 
     requests: PasswordResetRequest[]
     duplicateIpAlerts?: DuplicateIpAlert[]
     blockDuplicateIp?: boolean
+    customShiftAlerts?: CustomShiftAlert[]
 }) {
     const { toast } = useToast()
     // Data passed from Laravel controller
@@ -218,6 +230,63 @@ export default function AdminDashboard({
                         </div>
                     </CardHeader>
                 </Card>
+
+                {/* [FITUR SHIFT CUSTOM NOTIFICATION] Card Notifikasi Shift Custom Hari Ini */}
+                {customShiftAlerts && customShiftAlerts.length > 0 && (
+                    <Card className="border-indigo-200 bg-indigo-50/30 mb-6 shadow-sm">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Clock className="h-5 w-5 text-indigo-600 animate-pulse" />
+                                    <CardTitle className="text-lg font-bold text-indigo-900">
+                                        Notifikasi Shift Custom Hari Ini ({customShiftAlerts.length})
+                                    </CardTitle>
+                                </div>
+                                <Badge className="bg-indigo-600 text-white font-semibold">
+                                    {customShiftAlerts.length} Karyawan
+                                </Badge>
+                            </div>
+                            <CardDescription className="text-indigo-700/80 text-sm">
+                                Karyawan berikut melakukan absensi dengan menentukan jadwal jam kerja secara mandiri (Shift Custom).
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {customShiftAlerts.map(item => (
+                                    <div key={item.id} className="p-3 bg-white border border-indigo-100 rounded-lg flex items-center justify-between shadow-xs">
+                                        <div className="space-y-1">
+                                            <p className="font-semibold text-sm text-slate-800">{item.user_name}</p>
+                                            <p className="text-xs text-slate-400">{item.user_profession}</p>
+                                            <div className="flex items-center gap-1.5 pt-1">
+                                                <Badge variant="outline" className="text-xs border-indigo-300 text-indigo-700 bg-indigo-50 font-medium">
+                                                    ⏰ {item.custom_shift_start} - {item.custom_shift_end}
+                                                </Badge>
+                                                <span className="text-xs text-slate-500">
+                                                    Absen: {item.clock_in}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {item.photo_in && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600"
+                                                onClick={() => setSelectedPhoto({
+                                                    name: item.user_name,
+                                                    time: item.clock_in,
+                                                    ip: 'Shift Custom',
+                                                    photo_in: item.photo_in!
+                                                })}
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {duplicateIpAlerts && duplicateIpAlerts.length > 0 && (
                     <Card className="border-amber-200 bg-amber-50/20 mb-6">

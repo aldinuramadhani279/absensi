@@ -57,7 +57,7 @@ class ReportController extends Controller
 
         $travelRequests = $trQuery->get();
 
-        // 3. Expand Travel Requests
+        // 3. Expand Travel Requests & Admin Leaves
         $dinasRows = collect();
         foreach ($travelRequests as $tr) {
             $start = \Carbon\Carbon::parse($tr->start_date);
@@ -89,6 +89,50 @@ class ReportController extends Controller
             }
         }
 
+        // Expand Admin Leaves (Izin Dadakan)
+        $adminLeavesQuery = \App\Models\AdminLeave::with('user.profession');
+        if ($request->filled('profession_id') && $request->profession_id !== 'all') {
+            $adminLeavesQuery->whereHas('user', function ($q) use ($request) {
+                $q->where('profession_id', $request->profession_id);
+            });
+        }
+        if ($startDate) {
+            $adminLeavesQuery->where('end_date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $adminLeavesQuery->where('start_date', '<=', $endDate);
+        }
+
+        foreach ($adminLeavesQuery->get() as $al) {
+            $start = \Carbon\Carbon::parse($al->start_date);
+            $end = \Carbon\Carbon::parse($al->end_date);
+            
+            $reportStart = $startDate ? \Carbon\Carbon::parse($startDate) : $start;
+            $reportEnd = $endDate ? \Carbon\Carbon::parse($endDate) : $end;
+
+            $current = $start->copy();
+            while ($current->lte($end)) {
+                if ($current->gte($reportStart) && $current->lte($reportEnd)) {
+                    $dinasRows->push([
+                        'id' => 'admin_leave_' . $al->id . '_' . $current->format('Y-m-d'),
+                        'user_id' => $al->user_id,
+                        'user' => $al->user,
+                        'shift' => null,
+                        'clock_in' => '-',
+                        'clock_out' => '-',
+                        'status' => 'Izin (' . ucfirst($al->type) . ')',
+                        'notes' => $al->notes ?? 'Izin diberikan oleh admin',
+                        'created_at' => $current->format('Y-m-d 00:00:00'),
+                        'ip_address' => '-',
+                        'clock_in_ip' => '-',
+                        'photo_in' => null,
+                        'photo_out' => null
+                    ]);
+                }
+                $current->addDay();
+            }
+        }
+
         // Map attendances to standard format
         $attendancesData = $attendances->map(function($att) {
             return [
@@ -98,7 +142,7 @@ class ReportController extends Controller
                 'shift' => $att->shift,
                 'clock_in' => $att->clock_in,
                 'clock_out' => $att->clock_out,
-                'status' => $att->status,
+                'status' => $att->is_auto_closed ? $att->status . ' (Auto-Closed)' : $att->status,
                 'notes' => $att->notes,
                 'created_at' => $att->created_at->format('Y-m-d H:i:s'),
                 'ip_address' => $att->ip_address ?? $att->clock_in_ip,

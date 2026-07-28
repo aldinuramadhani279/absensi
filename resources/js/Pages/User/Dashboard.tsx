@@ -103,12 +103,22 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     const user = auth?.user;
     const hasClockOut = Boolean(attendance && attendance.clock_out !== null);
 
+    // Safe Date Parser (Safari / iOS Mobile Fix)
+    // Safari di iPhone mengembalikan NaN jika string datetime mengandung spasi " " alih-alih ISO "T"
+    const parseDate = (dateStr?: string | null) => {
+        if (!dateStr) return null;
+        const normalized = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+        const parsed = new Date(normalized);
+        return isNaN(parsed.getTime()) ? null : parsed;
+    };
+
     // [DOUBLE SHIFT WINDOW] Tombol double shift hanya muncul dalam 1 jam setelah clock out
-    // Setelah itu, tampilkan form Clock In biasa agar user bisa mulai shift baru fresh
-    const minutesSinceClockOut = attendance?.clock_out
-        ? (Date.now() - new Date(attendance.clock_out).getTime()) / (1000 * 60)
+    // Catatan: Jika absensi di-auto-close (lupa clock out), jangan aktifkan double shift agar user langsung bisa Clock In fresh
+    const clockOutDate = parseDate(attendance?.clock_out);
+    const minutesSinceClockOut = clockOutDate
+        ? (Date.now() - clockOutDate.getTime()) / (1000 * 60)
         : null;
-    const isDoubleShiftAvailable = hasClockOut && minutesSinceClockOut !== null && minutesSinceClockOut <= 60;
+    const isDoubleShiftAvailable = hasClockOut && !(attendance as any)?.is_auto_closed && minutesSinceClockOut !== null && minutesSinceClockOut >= 0 && minutesSinceClockOut <= 60;
 
     // Stop camera stream
     const stopCamera = () => {
@@ -615,8 +625,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                 <h3 className="font-bold text-lg text-green-900">Absensi Selesai!</h3>
                                 <p className="text-green-700 text-sm mb-4">Terima kasih atas kerja keras Anda di shift <strong>{attendance.shift?.name}</strong>.</p>
                                 <div className="grid grid-cols-2 gap-4 text-sm mt-2 bg-white/60 p-4 rounded-lg">
-                                    <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Masuk</p><p className="font-bold text-lg">{attendance.clock_in ? new Date(attendance.clock_in).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : '-'}</p></div>
-                                    <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Pulang</p><p className="font-bold text-lg">{attendance.clock_out ? new Date(attendance.clock_out).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : '-'}</p></div>
+                                    <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Masuk</p><p className="font-bold text-lg">{parseDate(attendance.clock_in)?.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) ?? '-'}</p></div>
+                                    <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Pulang</p><p className="font-bold text-lg">{parseDate(attendance.clock_out)?.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) ?? '-'}</p></div>
                                 </div>
                                 {/* [DOUBLE SHIFT] Tombol Lanjut Double Shift */}
                                 <Button
@@ -633,7 +643,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                             <div className="space-y-6">
                                 <div className="text-center p-6 bg-blue-50/80 rounded-xl border border-blue-100">
                                     <p className="text-sm text-blue-800/70 font-medium uppercase tracking-wider mb-1">Waktu Masuk</p>
-                                    <p className="text-4xl font-black text-blue-900 tracking-tight">{attendance.clock_in ? new Date(attendance.clock_in).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : '-'}</p>
+                                    <p className="text-4xl font-black text-blue-900 tracking-tight">{parseDate(attendance.clock_in)?.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) ?? '-'}</p>
                                     {/* Show status badge if available */}
                                     {attendance.status && (
                                         <div className={`mt-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${attendance.status === 'terlambat' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'

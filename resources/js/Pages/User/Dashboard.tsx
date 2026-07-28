@@ -103,6 +103,13 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     const user = auth?.user;
     const hasClockOut = Boolean(attendance && attendance.clock_out !== null);
 
+    // [DOUBLE SHIFT WINDOW] Tombol double shift hanya muncul dalam 1 jam setelah clock out
+    // Setelah itu, tampilkan form Clock In biasa agar user bisa mulai shift baru fresh
+    const minutesSinceClockOut = attendance?.clock_out
+        ? (Date.now() - new Date(attendance.clock_out).getTime()) / (1000 * 60)
+        : null;
+    const isDoubleShiftAvailable = hasClockOut && minutesSinceClockOut !== null && minutesSinceClockOut <= 60;
+
     // Stop camera stream
     const stopCamera = () => {
         if (streamRef.current) {
@@ -602,7 +609,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     </Button>
                                 )}
                             </div>
-                        ) : hasClockOut && attendance ? (
+                        ) : isDoubleShiftAvailable && attendance ? (
                             <div className="text-center p-6 bg-green-50 rounded-xl border border-green-100">
                                 <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
                                 <h3 className="font-bold text-lg text-green-900">Absensi Selesai!</h3>

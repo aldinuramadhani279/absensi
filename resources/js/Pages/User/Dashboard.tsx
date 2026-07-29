@@ -128,33 +128,61 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         }
     }
 
-    // Helper konversi canvas ke Blob yang aman untuk semua HP (HP modern + HP lama)
+    // Helper konversi canvas ke Blob yang aman & ultra-cepat untuk semua HP (HP modern + HP lama)
     const getCanvasBlob = (canvas: HTMLCanvasElement, quality = 0.65): Promise<Blob | null> => {
         return new Promise((resolve) => {
             if (typeof canvas.toBlob === 'function') {
                 try {
-                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            // Fallback jika toBlob mengembalikan null
+                            tryDataUrlFallback(canvas, quality, resolve);
+                        }
+                    }, 'image/jpeg', quality);
                     return;
                 } catch (e) {
-                    console.warn('canvas.toBlob failed, trying dataURL fallback:', e);
+                    console.warn('canvas.toBlob threw error, trying dataURL fallback:', e);
                 }
             }
-            // Fallback untuk browser / HP lama yang tidak mendukung canvas.toBlob
-            try {
-                const dataURL = canvas.toDataURL('image/jpeg', quality);
-                const byteString = atob(dataURL.split(',')[1]);
-                const mimeString = dataURL.split(',')[0].split(':')[1].split(';')[0];
-                const ab = new ArrayBuffer(byteString.length);
-                const ia = new Uint8Array(ab);
-                for (let i = 0; i < byteString.length; i++) {
-                    ia[i] = byteString.charCodeAt(i);
-                }
-                resolve(new Blob([ab], { type: mimeString }));
-            } catch (e) {
-                console.error('Canvas blob conversion error:', e);
-                resolve(null);
-            }
+            tryDataUrlFallback(canvas, quality, resolve);
         });
+    };
+
+    const tryDataUrlFallback = (canvas: HTMLCanvasElement, quality: number, resolve: (b: Blob | null) => void) => {
+        try {
+            const dataURL = canvas.toDataURL('image/jpeg', quality);
+            // Gunakan native fetch jika didukung (sangat cepat & aman di C++)
+            if (typeof fetch === 'function') {
+                fetch(dataURL)
+                    .then(res => res.blob())
+                    .then(blob => resolve(blob))
+                    .catch(() => manualBase64ToBlob(dataURL, resolve));
+            } else {
+                manualBase64ToBlob(dataURL, resolve);
+            }
+        } catch (e) {
+            console.error('Canvas blob conversion error:', e);
+            resolve(null);
+        }
+    };
+
+    const manualBase64ToBlob = (dataURL: string, resolve: (b: Blob | null) => void) => {
+        try {
+            const parts = dataURL.split(',');
+            const byteString = atob(parts[1]);
+            const mimeString = parts[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            resolve(new Blob([ab], { type: mimeString }));
+        } catch (e) {
+            console.error('manualBase64ToBlob error:', e);
+            resolve(null);
+        }
     };
 
     // Handle File Input Fallback (Kamera bawaan HP)
@@ -170,12 +198,13 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
 
         img.onload = async () => {
             try {
-                const canvas = canvasRef.current || document.createElement('canvas');
+                // Gunakan offscreen canvas independen agar tidak pernah terpengaruh unmount UI
+                const canvas = document.createElement('canvas');
                 
-                // Perkecil ukuran gambar agar super enteng & instan (< 40KB)
                 const maxDim = 640;
-                let width = img.width;
-                let height = img.height;
+                let width = img.width || 640;
+                let height = img.height || 480;
+
                 if (width > maxDim || height > maxDim) {
                     if (width > height) {
                         height = Math.round((height * maxDim) / width);
@@ -186,11 +215,12 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     }
                 }
 
-                canvas.width = width;
-                canvas.height = height;
+                // Proteksi dimensi minimum
+                canvas.width = Math.max(1, width);
+                canvas.height = Math.max(1, height);
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
-                    ctx.drawImage(img, 0, 0, width, height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                     // Tambahkan Watermark
                     const dateStr = new Date().toLocaleString("id-ID");
@@ -257,6 +287,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 toast({ variant: "destructive", title: "harap absen menggunakan HP" });
                 return;
             }
+            stopCamera();
             fileInputRef.current?.click();
             return;
         }
@@ -276,14 +307,15 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
             streamRef.current = stream;
 
             setTimeout(() => {
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
+                if (videoRef.current && streamRef.current) {
+                    videoRef.current.srcObject = streamRef.current;
+                    videoRef.current.play().catch(() => {});
                 }
-            }, 100);
+            }, 150);
 
         } catch (err: any) {
             console.error('Camera error, falling back to file input:', err);
-            // Jika gagal akses/izin ditolak/kamera sedang sibuk, fallback ke kamera bawaan HP (hanya untuk HP)
+            stopCamera(); // Pastikan hardware kamera dilepas dulu sebelum fallback
             if (!isMobile) {
                 toast({ variant: "destructive", title: "harap absen menggunakan HP" });
                 return;
@@ -303,59 +335,74 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     // Capture Photo, Add Watermark & Submit
     const captureAndSubmit = async () => {
         const video = videoRef.current;
-        const canvas = canvasRef.current;
-        if (!video || !canvas) return;
+        if (!video) return;
 
         setSubmitProgressText("[1/2] Mengompresi Foto...");
 
-        let width = video.videoWidth || 640;
-        let height = video.videoHeight || 480;
+        try {
+            // Gunakan offscreen canvas independen agar tidak pernah terpengaruh unmount UI modal
+            const canvas = document.createElement('canvas');
 
-        // Perkecil ukuran gambar ke max 640px agar upload instan (< 40KB)
-        const maxDim = 640;
-        if (width > maxDim || height > maxDim) {
-            if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-            } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
+            let width = video.videoWidth || 640;
+            let height = video.videoHeight || 480;
+
+            const maxDim = 640;
+            if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                } else {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
+                }
             }
-        }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+            // Proteksi dimensi minimum
+            canvas.width = Math.max(1, width);
+            canvas.height = Math.max(1, height);
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                toast({ variant: "destructive", title: "Gagal memproses foto", description: "Browser tidak mendukung Canvas 2D." });
+                setSubmitProgressText("");
+                return;
+            }
 
-        // Draw video frame to canvas with optimized dimensions
-        ctx.drawImage(video, 0, 0, width, height);
+            // Draw video frame ke offscreen canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Add Watermark overlay
-        const dateStr = new Date().toLocaleString("id-ID");
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.fillRect(10, canvas.height - 35, Math.min(260, canvas.width - 20), 25);
-        ctx.font = "12px sans-serif";
-        ctx.fillStyle = "white";
-        ctx.fillText(`Waktu: ${dateStr}`, 15, canvas.height - 18);
+            // Add Watermark overlay
+            const dateStr = new Date().toLocaleString("id-ID");
+            ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            ctx.fillRect(10, canvas.height - 35, Math.min(260, canvas.width - 20), 25);
+            ctx.font = "12px sans-serif";
+            ctx.fillStyle = "white";
+            ctx.fillText(`Waktu: ${dateStr}`, 15, canvas.height - 18);
 
-        // Stop camera & close dialog
-        stopCamera();
-        setShowCameraDialog(false);
+            // [PENTING] Buat file Blob TERLEBIH DAHULU saat canvas & stream masih utuh di memori!
+            const blob = await getCanvasBlob(canvas, 0.65);
 
-        // Async toBlob (Non-blocking background thread with polyfill)
-        const blob = await getCanvasBlob(canvas, 0.65);
-        if (!blob) {
-            toast({ variant: "destructive", title: "Gagal memproses foto", description: "Silakan coba lagi." });
+            // Setelah Blob berhasil dibuat, BARU stop kamera dan tutup dialog
+            stopCamera();
+            setShowCameraDialog(false);
+
+            if (!blob) {
+                toast({ variant: "destructive", title: "Gagal memproses foto", description: "Silakan coba lagi." });
+                setSubmitProgressText("");
+                return;
+            }
+
+            const currentAction = actionTypeRef.current || actionType;
+            if (currentAction === "in") {
+                await submitClockIn(blob, 0, 0);
+            } else {
+                await submitClockOut(blob, 0, 0);
+            }
+        } catch (err) {
+            console.error("captureAndSubmit error:", err);
+            stopCamera();
+            setShowCameraDialog(false);
+            toast({ variant: "destructive", title: "Gagal memproses foto", description: "Terjadi kesalahan sistem." });
             setSubmitProgressText("");
-            return;
-        }
-
-        const currentAction = actionTypeRef.current || actionType;
-        if (currentAction === "in") {
-            await submitClockIn(blob, 0, 0);
-        } else {
-            await submitClockOut(blob, 0, 0);
         }
     }
 

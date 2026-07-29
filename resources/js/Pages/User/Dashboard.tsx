@@ -128,6 +128,35 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         }
     }
 
+    // Helper konversi canvas ke Blob yang aman untuk semua HP (HP modern + HP lama)
+    const getCanvasBlob = (canvas: HTMLCanvasElement, quality = 0.65): Promise<Blob | null> => {
+        return new Promise((resolve) => {
+            if (typeof canvas.toBlob === 'function') {
+                try {
+                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+                    return;
+                } catch (e) {
+                    console.warn('canvas.toBlob failed, trying dataURL fallback:', e);
+                }
+            }
+            // Fallback untuk browser / HP lama yang tidak mendukung canvas.toBlob
+            try {
+                const dataURL = canvas.toDataURL('image/jpeg', quality);
+                const byteString = atob(dataURL.split(',')[1]);
+                const mimeString = dataURL.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                resolve(new Blob([ab], { type: mimeString }));
+            } catch (e) {
+                console.error('Canvas blob conversion error:', e);
+                resolve(null);
+            }
+        });
+    };
+
     // Handle File Input Fallback (Kamera bawaan HP)
     const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -135,10 +164,12 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
 
         setSubmitProgressText("[1/2] Mengompresi Foto...");
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
+        // Gunakan URL.createObjectURL (0 MB RAM overhead, cegah crash Out-Of-Memory di HP lama)
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = async () => {
+            try {
                 const canvas = canvasRef.current || document.createElement('canvas');
                 
                 // Perkecil ukuran gambar agar super enteng & instan (< 40KB)
@@ -172,24 +203,34 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     // Reset input file agar bisa digunakan lagi
                     e.target.value = "";
 
-                    // Konversi ke Binary Blob secara Async (background thread, UI tidak freeze)
-                    canvas.toBlob(async (blob) => {
-                        if (!blob) {
-                            toast({ variant: "destructive", title: "Gagal memproses foto", description: "Silakan coba lagi." });
-                            setSubmitProgressText("");
-                            return;
-                        }
-                        if (actionTypeRef.current === "in") {
-                            await submitClockIn(blob, 0, 0);
-                        } else if (actionTypeRef.current === "out") {
-                            await submitClockOut(blob, 0, 0);
-                        }
-                    }, 'image/jpeg', 0.65);
+                    const blob = await getCanvasBlob(canvas, 0.65);
+                    if (!blob) {
+                        toast({ variant: "destructive", title: "Gagal memproses foto", description: "Silakan coba lagi." });
+                        setSubmitProgressText("");
+                        return;
+                    }
+                    if (actionTypeRef.current === "in") {
+                        await submitClockIn(blob, 0, 0);
+                    } else if (actionTypeRef.current === "out") {
+                        await submitClockOut(blob, 0, 0);
+                    }
                 }
-            };
-            img.src = event.target?.result as string;
+            } catch (err) {
+                console.error("Image processing error:", err);
+                toast({ variant: "destructive", title: "Gagal memproses foto" });
+                setSubmitProgressText("");
+            } finally {
+                URL.revokeObjectURL(objectUrl);
+            }
         };
-        reader.readAsDataURL(file);
+
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            toast({ variant: "destructive", title: "Gagal membaca foto" });
+            setSubmitProgressText("");
+        };
+
+        img.src = objectUrl;
     }
 
     // Open capture dialog — minta izin kamera dulu, baru buka dialog
@@ -221,8 +262,14 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         }
 
         try {
-            // Browser akan tampilkan prompt izin kamera secara otomatis di sini
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+            // Minta izin stream kamera dengan batasan resolusi ideal 640x480 (enteng di HP lama)
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: "user",
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                }
+            });
 
             // Izin diberikan — buka dialog kamera
             setShowCameraDialog(true);
@@ -296,21 +343,20 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         stopCamera();
         setShowCameraDialog(false);
 
-        // Async toBlob (Non-blocking background thread)
-        canvas.toBlob(async (blob) => {
-            if (!blob) {
-                toast({ variant: "destructive", title: "Gagal memproses foto", description: "Silakan coba lagi." });
-                setSubmitProgressText("");
-                return;
-            }
+        // Async toBlob (Non-blocking background thread with polyfill)
+        const blob = await getCanvasBlob(canvas, 0.65);
+        if (!blob) {
+            toast({ variant: "destructive", title: "Gagal memproses foto", description: "Silakan coba lagi." });
+            setSubmitProgressText("");
+            return;
+        }
 
-            const currentAction = actionTypeRef.current || actionType;
-            if (currentAction === "in") {
-                await submitClockIn(blob, 0, 0);
-            } else {
-                await submitClockOut(blob, 0, 0);
-            }
-        }, 'image/jpeg', 0.65);
+        const currentAction = actionTypeRef.current || actionType;
+        if (currentAction === "in") {
+            await submitClockIn(blob, 0, 0);
+        } else {
+            await submitClockOut(blob, 0, 0);
+        }
     }
 
     const submitClockIn = async (photoBlob: Blob | File, lat: number, lng: number) => {

@@ -64,7 +64,7 @@ export default function ForgotPasswordPage() {
                     </Link>
                     <CardTitle className="text-2xl font-bold">Lupa Kata Sandi</CardTitle>
                     <CardDescription className="text-base leading-relaxed">
-                        Masukkan email Anda untuk mengajukan reset password. Admin akan meninjau permintaan Anda.
+                        Masukkan email pribadi Anda untuk mengajukan reset password. Admin akan meninjau permintaan Anda.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -77,12 +77,12 @@ export default function ForgotPasswordPage() {
 
                         <div className="space-y-2">
                             <Label htmlFor="email" className="text-sm font-medium">
-                                Email
+                                Email Pribadi
                             </Label>
                             <Input
                                 id="email"
                                 type="email"
-                                placeholder="nama@perusahaan.com"
+                                placeholder="Masukkan email pribadi Anda"
                                 value={data.email}
                                 onChange={(e) => setData('email', e.target.value)}
                                 disabled={processing}

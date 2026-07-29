@@ -20,21 +20,38 @@ interface Profession {
     name: string;
 }
 
-interface RegisterPageProps {
-    professions: Profession[];
+interface EmploymentStatusItem {
+    id: number | string;
+    name: string;
+    code: string;
 }
 
-export default function RegisterPage({ professions }: RegisterPageProps) {
+interface RegisterPageProps {
+    professions: Profession[];
+    employment_statuses?: EmploymentStatusItem[];
+}
+
+export default function RegisterPage({ professions, employment_statuses = [] }: RegisterPageProps) {
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [passwordConfirmation, setPasswordConfirmation] = useState("")
     const [professionId, setProfessionId] = useState("")
-    const [status, setStatus] = useState("non-pns")
+    const [status, setStatus] = useState("")
     const [nip, setNip] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [errorLocal, setErrorLocal] = useState("")
+
+    const statusOptions = employment_statuses.length > 0
+        ? employment_statuses
+        : [
+            { id: 'non-pns', name: 'Non-PNS', code: 'non-pns' },
+            { id: 'pns', name: 'PNS', code: 'pns' },
+            { id: 'militer', name: 'Militer', code: 'militer' },
+            { id: 'pppk', name: 'PPPK', code: 'pppk' },
+            { id: 'pblu', name: 'PBLU', code: 'pblu' }
+          ];
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -55,12 +72,20 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
             return
         }
 
-        if ((status === 'pns' || status === 'pppk') && !nip) {
-            setErrorLocal(`NIP wajib diisi untuk status ${status === 'pns' ? 'PNS' : 'PPPK'}`)
+        if (!status) {
+            setErrorLocal("Silakan pilih status kepegawaian")
             return
         }
 
-        if (status === 'militer' && !nip) {
+        const selectedStatusObj = statusOptions.find(s => (s.code || String(s.id)) === status);
+        const statusCode = (selectedStatusObj?.code || status).toLowerCase();
+
+        if ((statusCode === 'pns' || statusCode === 'pppk') && !nip) {
+            setErrorLocal(`NIP wajib diisi untuk status ${statusCode.toUpperCase()}`)
+            return
+        }
+
+        if (statusCode === 'militer' && !nip) {
             setErrorLocal("NRP wajib diisi untuk status Militer")
             return
         }
@@ -140,27 +165,27 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
                             </Label>
                             <Select onValueChange={setStatus} value={status} disabled={isLoading}>
                                 <SelectTrigger id="status" className="h-11">
-                                    <SelectValue placeholder="Pilih Status" />
+                                    <SelectValue placeholder="Pilih Status Kepegawaian" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="non-pns">Non-PNS</SelectItem>
-                                    <SelectItem value="pns">PNS</SelectItem>
-                                    <SelectItem value="militer">Militer</SelectItem>
-                                    <SelectItem value="pppk">PPPK</SelectItem>
-                                    <SelectItem value="pblu">PBLU</SelectItem>
+                                    {statusOptions.map((st) => (
+                                        <SelectItem key={st.id} value={st.code || String(st.id)}>
+                                            {st.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
 
-                        {(status === 'pns' || status === 'pppk' || status === 'militer') && (
+                        {(status.toLowerCase() === 'pns' || status.toLowerCase() === 'pppk' || status.toLowerCase() === 'militer') && (
                             <div className="space-y-2">
                                 <Label htmlFor="nip" className="text-sm font-medium">
-                                    {status === 'militer' ? 'NRP' : 'NIP'}
+                                    {status.toLowerCase() === 'militer' ? 'NRP' : 'NIP'}
                                 </Label>
                                 <Input
                                     id="nip"
                                     type="text"
-                                    placeholder={status === 'militer' ? 'Nomor Registrasi Prajurit' : 'Nomor Induk Pegawai'}
+                                    placeholder={status.toLowerCase() === 'militer' ? 'Nomor Registrasi Prajurit' : 'Nomor Induk Pegawai'}
                                     value={nip}
                                     onChange={(e) => setNip(e.target.value)}
                                     disabled={isLoading}
@@ -172,12 +197,12 @@ export default function RegisterPage({ professions }: RegisterPageProps) {
 
                         <div className="space-y-2">
                             <Label htmlFor="email" className="text-sm font-medium">
-                                Email
+                                Email Pribadi
                             </Label>
                             <Input
                                 id="email"
                                 type="email"
-                                placeholder="Email"
+                                placeholder="Email Pribadi"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}

@@ -576,7 +576,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
             <header className="bg-white border-b sticky top-0 z-10">
                 <div className="container mx-auto px-4 py-4 flex items-center justify-between">
                     <div>
-                        <h1 className="text-xl font-bold text-gray-900">Sistem Absensi</h1>
+                        <h1 className="text-xl font-bold text-gray-900">Sistem Presensi</h1>
                         <p className="text-sm text-muted-foreground">Karyawan</p>
                     </div>
                     <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2"><LogOut className="h-4 w-4" />Keluar</Button>
@@ -611,7 +611,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     <Alert className="mb-6 border-amber-300 bg-amber-50 text-amber-800">
                         <AlertCircle className="h-4 w-4 text-amber-600" />
                         <AlertDescription>
-                            <strong>Warning:</strong> Koneksi IP Anda terdeteksi sama dengan karyawan lain hari ini ({(duplicate_ip_users || []).join(', ')}). Harap pastikan Anda melakukan absensi secara mandiri.
+                            <strong>Warning:</strong> Koneksi IP Anda terdeteksi sama dengan karyawan lain hari ini ({(duplicate_ip_users || []).join(', ')}). Harap pastikan Anda melakukan presensi secara mandiri.
                         </AlertDescription>
                     </Alert>
                 )}
@@ -625,7 +625,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
 
                 <Card className="mb-6 border-blue-200 shadow-md">
                     <CardHeader className="bg-blue-50/50 rounded-t-lg">
-                        <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-blue-600" />Status Absensi Hari Ini</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-blue-600" />Status Presensi Hari Ini</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
                         {!attendance || (hasClockOut && isDoubleShiftMode) || (hasClockOut && !isDoubleShiftAvailable) ? (
@@ -634,7 +634,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     <Alert className="border-indigo-300 bg-indigo-50 text-indigo-900 text-left">
                                         <RefreshCw className="h-4 w-4 text-indigo-600" />
                                         <AlertDescription>
-                                            <strong>Mode Double Shift Active:</strong> Absensi <strong>{attendance.shift?.name}</strong> sebelumnya telah selesai dan tersimpan rapi di Riwayat. Silakan pilih shift baru di bawah ini untuk Clock In shift berikutnya.
+                                            <strong>Mode Double Shift Active:</strong> Presensi <strong>{attendance.shift?.name}</strong> sebelumnya telah selesai dan tersimpan rapi di Riwayat. Silakan pilih shift baru di bawah ini untuk Clock In shift berikutnya.
                                         </AlertDescription>
                                     </Alert>
                                 )}
@@ -647,7 +647,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     <Alert className="border-red-300 bg-red-50 text-red-800 text-left">
                                         <AlertCircle className="h-4 w-4 text-red-600" />
                                         <AlertDescription>
-                                            Silakan menggunakan HP untuk melakukan absensi / jangan menggunakan mode desktop.
+                                            Silakan menggunakan HP untuk melakukan presensi / jangan menggunakan mode desktop.
                                         </AlertDescription>
                                     </Alert>
                                 )}
@@ -715,7 +715,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                         ) : isDoubleShiftAvailable && attendance ? (
                             <div className="text-center p-6 bg-green-50 rounded-xl border border-green-100">
                                 <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
-                                <h3 className="font-bold text-lg text-green-900">Absensi Selesai!</h3>
+                                <h3 className="font-bold text-lg text-green-900">Presensi Selesai!</h3>
                                 <p className="text-green-700 text-sm mb-4">Terima kasih atas kerja keras Anda di shift <strong>{attendance.shift?.name}</strong>.</p>
                                 <div className="grid grid-cols-2 gap-4 text-sm mt-2 bg-white/60 p-4 rounded-lg">
                                     <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Masuk</p><p className="font-bold text-lg">{parseDate(attendance.clock_in)?.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) ?? '-'}</p></div>
@@ -750,7 +750,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                          <Alert className="border-red-300 bg-red-50 text-red-800 text-left">
                                              <AlertCircle className="h-4 w-4 text-red-600" />
                                              <AlertDescription>
-                                                 Silakan menggunakan HP untuk melakukan absensi / jangan menggunakan mode desktop.
+                                                 Silakan menggunakan HP untuk melakukan presensi / jangan menggunakan mode desktop.
                                              </AlertDescription>
                                          </Alert>
                                      )}
@@ -781,7 +781,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <a href="/profile"><Button variant="outline" className="w-full gap-2 border-blue-200 text-blue-800 hover:bg-blue-50"><UserCog className="h-4 w-4" />Edit Profil</Button></a>
-                    <a href="/history"><Button variant="outline" className="w-full gap-2"><History className="h-4 w-4" />Riwayat Absensi</Button></a>
+                    <a href="/history"><Button variant="outline" className="w-full gap-2"><History className="h-4 w-4" />Riwayat Presensi</Button></a>
                     <a href="/leave-requests"><Button variant="outline" className="w-full gap-2"><FilePlus className="h-4 w-4" />Ajukan Cuti</Button></a>
                     <a href="/travel-requests"><Button variant="outline" className="w-full gap-2"><FilePlus className="h-4 w-4" />Dinas Luar Kota</Button></a>
                     <Dialog>

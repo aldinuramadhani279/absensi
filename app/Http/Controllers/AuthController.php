@@ -15,8 +15,11 @@ class AuthController extends Controller
 
     public function showRegister()
     {
+        $employmentStatuses = \App\Models\EmploymentStatus::orderBy('name')->get(['id', 'name', 'code']);
+
         return Inertia::render('Auth/Register', [
-            'professions' => \App\Models\Profession::all(['id', 'name']),
+            'professions'          => \App\Models\Profession::all(['id', 'name']),
+            'employment_statuses' => $employmentStatuses,
         ]);
     }
 
@@ -62,7 +65,7 @@ class AuthController extends Controller
             'email'         => 'required|string|email|max:255|unique:users',
             'password'      => 'required|string|min:8|confirmed',
             'profession_id' => 'required|exists:professions,id',
-            'status'        => 'required|in:pns,non-pns,militer,pppk,pblu',
+            'status'        => 'required|string|max:255',
             'nip'           => 'nullable|required_if:status,pns,pppk,militer|string|max:255',
         ], [
             'nip.required_if' => 'NIP atau NRP wajib diisi untuk status PNS, PPPK, atau Militer.',

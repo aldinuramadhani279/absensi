@@ -27,6 +27,11 @@
                 background-position: center;
                 background-repeat: no-repeat;
                 opacity: 0.15;
+                z-index: -9999;
+                pointer-events: none;
+            }
+        </style>
+
         <!-- Force Mobile Viewport Enforcement for Mobile / Touch Devices -->
         <script>
             (function() {

@@ -74,7 +74,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     const [isMobileDevice, setIsMobileDevice] = useState(true)
 
     useEffect(() => {
-        const checkMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const checkMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.screen.width <= 1024);
         setIsMobileDevice(checkMobile);
     }, []);
 
@@ -279,14 +279,10 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         actionTypeRef.current = type;
         setActionType(type);
 
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isMobileOrTouch = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.screen.width <= 1024);
 
-        // Jika tidak mendukung mediaDevices (misal HTTP biasa), langsung fallback ke kamera bawaan HP (hanya untuk HP)
+        // Jika tidak mendukung mediaDevices (misal HTTP biasa), langsung fallback ke kamera bawaan HP
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            if (!isMobile) {
-                toast({ variant: "destructive", title: "harap absen menggunakan HP" });
-                return;
-            }
             stopCamera();
             fileInputRef.current?.click();
             return;
@@ -643,15 +639,6 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     <p className="text-center text-muted-foreground">Anda belum melakukan clock in hari ini.</p>
                                 )}
                                 
-                                {!isMobileDevice && (
-                                    <Alert className="border-red-300 bg-red-50 text-red-800 text-left">
-                                        <AlertCircle className="h-4 w-4 text-red-600" />
-                                        <AlertDescription>
-                                            Silakan menggunakan HP untuk melakukan presensi / jangan menggunakan mode desktop.
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-
                                 <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
                                     <Label htmlFor="shift" className="text-slate-700">
                                         {isDoubleShiftMode ? "1. Pilih Shift Berikutnya (Double Shift)" : "1. Pilih Shift Kerja"}
@@ -746,14 +733,6 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     )}
                                 </div>
                                 <div className="space-y-2">
-                                     {!isMobileDevice && (
-                                         <Alert className="border-red-300 bg-red-50 text-red-800 text-left">
-                                             <AlertCircle className="h-4 w-4 text-red-600" />
-                                             <AlertDescription>
-                                                 Silakan menggunakan HP untuk melakukan presensi / jangan menggunakan mode desktop.
-                                             </AlertDescription>
-                                         </Alert>
-                                     )}
                                      <Button onClick={() => openCaptureDialog("out")} disabled={isClockingOut} className="w-full h-12 text-md font-medium" variant="destructive" size="lg">
                                         {isClockingOut ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />{submitProgressText || "Memproses..."}</> : <><Camera className="mr-2 h-5 w-5" />Ambil Foto & Clock Out</>}
                                     </Button>

@@ -27,10 +27,19 @@
                 background-position: center;
                 background-repeat: no-repeat;
                 opacity: 0.15;
-                z-index: -9999;
-                pointer-events: none;
-            }
-        </style>
+        <!-- Force Mobile Viewport Enforcement for Mobile / Touch Devices -->
+        <script>
+            (function() {
+                var isTouchOrMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.screen.width <= 1024);
+                if (isTouchOrMobile) {
+                    var meta = document.querySelector('meta[name="viewport"]');
+                    if (meta) {
+                        var sw = window.screen.width || 375;
+                        meta.setAttribute('content', 'width=' + sw + ', initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                    }
+                }
+            })();
+        </script>
     </head>
     <body class="font-sans antialiased h-full relative bg-gray-50/50">
         @inertia

@@ -151,6 +151,14 @@ export default function ReportsIndex(props: any) {
         window.location.href = `/admin/reports/export?${params.toString()}`;
     }
 
+    const handleExportMatrix = () => {
+        const params = new URLSearchParams();
+        if (professionId) params.append('profession_id', professionId);
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        window.location.href = `/admin/reports/export-matrix?${params.toString()}`;
+    }
+
     return (
         <AdminLayout>
             <Head title="Laporan Absensi" />
@@ -161,46 +169,66 @@ export default function ReportsIndex(props: any) {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">Laporan Absensi</h1>
-                        <p className="text-muted-foreground">Lihat dan ekspor data absensi karyawan.</p>
+                        <p className="text-muted-foreground">Filter dan ekspor laporan kehadiran karyawan.</p>
                     </div>
                 </div>
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Filter className="h-5 w-5" /> Filter Laporan</CardTitle>
-                        <CardDescription>Pilih kriteria untuk menampilkan atau mengekspor laporan.</CardDescription>
+                        <CardTitle className="flex items-center gap-2">
+                            <Filter className="h-5 w-5 text-blue-600" />
+                            Filter Laporan
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
-                                <Label>Jabatan</Label>
-                                <Select onValueChange={setProfessionId} value={professionId}>
-                                    <SelectTrigger><SelectValue placeholder="Semua Jabatan" /></SelectTrigger>
+                                <Label htmlFor="profession">Jabatan</Label>
+                                <Select value={professionId} onValueChange={setProfessionId}>
+                                    <SelectTrigger id="profession">
+                                        <SelectValue placeholder="Semua Jabatan" />
+                                    </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Semua Jabatan</SelectItem>
                                         {professions.map((p: any) => (
-                                            <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                                            <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
+
                             <div className="space-y-2">
-                                <Label>Tanggal Mulai</Label>
-                                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                                <Label htmlFor="start_date">Tanggal Mulai</Label>
+                                <Input
+                                    id="start_date"
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                />
                             </div>
+
                             <div className="space-y-2">
-                                <Label>Tanggal Akhir</Label>
-                                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                                <Label htmlFor="end_date">Tanggal Selesai</Label>
+                                <Input
+                                    id="end_date"
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                />
                             </div>
                         </div>
-                        <div className='flex gap-2 justify-end'>
-                            <Button onClick={handleFilter} disabled={isLoading}>
-                                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                                Tampilkan Data
+
+                        <div className="flex flex-wrap items-center gap-3 pt-2">
+                            <Button onClick={handleFilter} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
+                                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Tampilkan Laporan"}
                             </Button>
                             <Button onClick={handleExport} variant="outline" className="border-green-600 text-green-700 hover:bg-green-50">
                                 <FileDown className="h-4 w-4 mr-2" />
-                                Ekspor Excel
+                                Ekspor Rekap Excel
+                            </Button>
+                            <Button onClick={handleExportMatrix} variant="outline" className="border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-semibold shadow-sm">
+                                <FileDown className="h-4 w-4 mr-2 text-emerald-600" />
+                                🎨 Ekspor Matriks Kalender (Berwarna)
                             </Button>
                         </div>
                     </CardContent>

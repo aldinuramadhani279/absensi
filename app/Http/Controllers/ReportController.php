@@ -186,4 +186,13 @@ class ReportController extends Controller
             $request->end_date
         ), 'laporan-absensi-' . now()->format('Y-m-d') . '.xlsx');
     }
+
+    public function exportMatrix(Request $request)
+    {
+        return Excel::download(new \App\Exports\MatrixAttendanceExport(
+            $request->profession_id,
+            $request->start_date,
+            $request->end_date
+        ), 'laporan-matriks-kalender-' . now()->format('Y-m-d') . '.xlsx');
+    }
 }

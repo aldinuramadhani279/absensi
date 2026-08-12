@@ -85,6 +85,7 @@ Route::middleware(['auth', 'is.admin'])->prefix('admin')->group(function () {
 
     Route::get('reports', [App\Http\Controllers\ReportController::class, 'index'])->name('admin.reports.index');
     Route::get('reports/export', [App\Http\Controllers\ReportController::class, 'export'])->name('admin.reports.export');
+    Route::get('reports/export-matrix', [App\Http\Controllers\ReportController::class, 'exportMatrix'])->name('admin.reports.export-matrix');
 
     // [IZIN DADAKAN] Admin bisa memberikan izin langsung ke karyawan
     Route::get('admin-leaves', [App\Http\Controllers\AdminLeaveGrantController::class, 'index'])->name('admin.admin-leaves.index');

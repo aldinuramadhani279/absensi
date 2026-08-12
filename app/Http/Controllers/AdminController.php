@@ -72,11 +72,14 @@ class AdminController extends Controller
                 ];
             });
 
+        $lateToleranceMinutes = (int) \App\Models\Setting::get('late_tolerance_minutes', '10');
+
         return Inertia::render('Admin/Dashboard', [
-            'requests'           => $requests,
-            'duplicateIpAlerts'  => $duplicateIpAlerts,
-            'blockDuplicateIp'   => $blockDuplicateIp,
-            'customShiftAlerts'  => $customShiftAlerts,
+            'requests'             => $requests,
+            'duplicateIpAlerts'    => $duplicateIpAlerts,
+            'blockDuplicateIp'     => $blockDuplicateIp,
+            'customShiftAlerts'    => $customShiftAlerts,
+            'lateToleranceMinutes' => $lateToleranceMinutes,
         ]);
     }
 
@@ -86,6 +89,17 @@ class AdminController extends Controller
         \App\Models\Setting::set('block_duplicate_ip', $enabled ? '1' : '0');
 
         return redirect()->back()->with('message', 'Pengaturan blokir IP duplikat berhasil diperbarui.');
+    }
+
+    public function updateLateTolerance(Request $request)
+    {
+        $request->validate([
+            'minutes' => 'required|integer|min:0|max:240',
+        ]);
+
+        \App\Models\Setting::set('late_tolerance_minutes', (string) $request->minutes);
+
+        return redirect()->back()->with('message', 'Toleransi keterlambatan berhasil diperbarui.');
     }
 
     public function getPasswordResets()

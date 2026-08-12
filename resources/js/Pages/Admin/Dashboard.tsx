@@ -54,12 +54,14 @@ export default function AdminDashboard({
     requests: initialRequests,
     duplicateIpAlerts = [],
     blockDuplicateIp = true,
-    customShiftAlerts = []
+    customShiftAlerts = [],
+    lateToleranceMinutes = 10
 }: { 
     requests: PasswordResetRequest[]
     duplicateIpAlerts?: DuplicateIpAlert[]
     blockDuplicateIp?: boolean
     customShiftAlerts?: CustomShiftAlert[]
+    lateToleranceMinutes?: number
 }) {
     const { toast } = useToast()
     // Data passed from Laravel controller
@@ -69,6 +71,36 @@ export default function AdminDashboard({
     const [showConfirmDialog, setShowConfirmDialog] = useState(false)
     const [isTogglingIp, setIsTogglingIp] = useState(false)
     const [selectedPhoto, setSelectedPhoto] = useState<{ name: string; time: string; ip: string; photo_in: string } | null>(null)
+
+    // Toleransi keterlambatan state
+    const [lateTolerance, setLateTolerance] = useState<number>(lateToleranceMinutes)
+    const [isSavingTolerance, setIsSavingTolerance] = useState(false)
+
+    useEffect(() => {
+        setLateTolerance(lateToleranceMinutes)
+    }, [lateToleranceMinutes])
+
+    const handleSaveTolerance = (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsSavingTolerance(true)
+        router.post('/admin/update-late-tolerance', { minutes: lateTolerance }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast({
+                    title: "Toleransi Diperbarui",
+                    description: `Batas toleransi keterlambatan berhasil diatur menjadi ${lateTolerance} menit.`,
+                })
+            },
+            onError: () => {
+                toast({
+                    variant: "destructive",
+                    title: "Gagal Menyimpan",
+                    description: "Pastikan input berupa angka antara 0 hingga 240 menit.",
+                })
+            },
+            onFinish: () => setIsSavingTolerance(false)
+        })
+    }
 
     const handleToggleIp = (enabled: boolean) => {
         setIsTogglingIp(true)
@@ -227,6 +259,43 @@ export default function AdminDashboard({
                                     </Button>
                                 )}
                             </div>
+                        </div>
+                    </CardHeader>
+                </Card>
+
+                {/* Control Card for Late Tolerance Setting */}
+                <Card className="mb-6 border-slate-200 shadow-sm">
+                    <CardHeader className="pb-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Clock className="h-5 w-5 text-indigo-600" />
+                                    <CardTitle className="text-lg font-bold text-slate-900">Pengaturan Toleransi Keterlambatan</CardTitle>
+                                    <Badge variant="outline" className="border-indigo-300 text-indigo-700 bg-indigo-50 font-bold">
+                                        {lateTolerance} Menit
+                                    </Badge>
+                                </div>
+                                <CardDescription className="text-sm text-slate-600">
+                                    Batas waktu kompensasi keterlambatan setelah jam mulai shift. Karyawan yang absen lewat dari <strong>{lateTolerance} menit</strong> dari jam shift akan tercatat <span className="text-red-600 font-semibold">Terlambat</span>.
+                                </CardDescription>
+                            </div>
+                            <form onSubmit={handleSaveTolerance} className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="240"
+                                        value={lateTolerance}
+                                        onChange={(e) => setLateTolerance(Math.max(0, parseInt(e.target.value) || 0))}
+                                        className="w-16 bg-transparent text-center font-bold text-slate-900 focus:outline-none text-base"
+                                        required
+                                    />
+                                    <span className="text-xs font-semibold text-slate-500">Menit</span>
+                                </div>
+                                <Button type="submit" disabled={isSavingTolerance} size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium">
+                                    {isSavingTolerance ? <Loader2 className="h-4 w-4 animate-spin" /> : "Simpan"}
+                                </Button>
+                            </form>
                         </div>
                     </CardHeader>
                 </Card>

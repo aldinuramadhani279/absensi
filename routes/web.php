@@ -64,6 +64,7 @@ Route::prefix('api')->group(function () {
 Route::middleware(['auth', 'is.admin'])->prefix('admin')->group(function () {
     Route::post('prune-photos', [\App\Http\Controllers\AdminController::class, 'prunePhotos'])->name('admin.prune-photos');
     Route::post('toggle-duplicate-ip', [\App\Http\Controllers\AdminController::class, 'toggleDuplicateIp'])->name('admin.toggle-duplicate-ip');
+    Route::post('update-late-tolerance', [\App\Http\Controllers\AdminController::class, 'updateLateTolerance'])->name('admin.update-late-tolerance');
 
     // Resource routes for master data
     Route::resource('professions', App\Http\Controllers\ProfessionController::class)->except(['create', 'edit', 'show', 'update']);

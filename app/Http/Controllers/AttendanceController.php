@@ -143,7 +143,7 @@ class AttendanceController extends Controller
             $shiftStartPart = \Carbon\Carbon::parse($shift->start_time);
             $shiftStart     = now()->setTime($shiftStartPart->hour, $shiftStartPart->minute, $shiftStartPart->second);
             $clockInTime    = now();
-            $tolerance      = 10;
+            $tolerance      = (int) Setting::get('late_tolerance_minutes', 10);
 
             if ($clockInTime->gt($shiftStart)) {
                 $minsLate = $clockInTime->diffInMinutes($shiftStart);

@@ -13,7 +13,7 @@ import {
 } from "@/Components/ui/dialog"
 import { Badge } from "@/Components/ui/badge"
 import { Alert, AlertDescription } from "@/Components/ui/alert"
-import { CheckCircle2, Clock, Loader2, AlertCircle, ShieldAlert, ShieldCheck, Wifi, Eye, Image as ImageIcon } from "lucide-react"
+import { CheckCircle2, Clock, Loader2, AlertCircle, ShieldAlert, ShieldCheck, Wifi, Eye, Image as ImageIcon, Users, FileText, Plane, Key } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import axios from "axios" // Using axios for API calls remaining within the page
 import AdminLayout from "@/Layouts/AdminLayout"
@@ -50,18 +50,36 @@ interface CustomShiftAlert {
     photo_in?: string | null
 }
 
+interface DashboardStats {
+    total_employees: number
+    today_attendances: number
+    today_late: number
+    pending_leaves: number
+    pending_travels: number
+    pending_password_resets: number
+}
+
 export default function AdminDashboard({ 
     requests: initialRequests,
     duplicateIpAlerts = [],
     blockDuplicateIp = true,
     customShiftAlerts = [],
-    lateToleranceMinutes = 10
+    lateToleranceMinutes = 10,
+    stats = {
+        total_employees: 0,
+        today_attendances: 0,
+        today_late: 0,
+        pending_leaves: 0,
+        pending_travels: 0,
+        pending_password_resets: 0,
+    }
 }: { 
     requests: PasswordResetRequest[]
     duplicateIpAlerts?: DuplicateIpAlert[]
     blockDuplicateIp?: boolean
     customShiftAlerts?: CustomShiftAlert[]
     lateToleranceMinutes?: number
+    stats?: DashboardStats
 }) {
     const { toast } = useToast()
     // Data passed from Laravel controller
@@ -186,26 +204,61 @@ export default function AdminDashboard({
                         Hapus Foto (+24 Jam)
                     </Button>
                 </div>
-                {/* Stats Cards */}
-                <div className="grid gap-4 md:grid-cols-3 mb-6">
+                {/* Overview Stats Cards */}
+                <div className="grid gap-4 grid-cols-2 md:grid-cols-4 mb-6">
+                    <Card className="border-blue-100 bg-blue-50/20 shadow-sm">
+                        <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                                <CardDescription className="font-semibold text-slate-600">Total Karyawan</CardDescription>
+                                <Users className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <CardTitle className="text-3xl font-bold text-slate-900">{stats.total_employees}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 text-xs text-slate-500">
+                            Karyawan aktif terdaftar
+                        </CardContent>
+                    </Card>
 
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardDescription>Total Permintaan</CardDescription>
-                            <CardTitle className="text-3xl font-bold">{requests.length}</CardTitle>
+                    <Card className="border-emerald-100 bg-emerald-50/20 shadow-sm">
+                        <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                                <CardDescription className="font-semibold text-slate-600">Hadir Hari Ini</CardDescription>
+                                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                            </div>
+                            <CardTitle className="text-3xl font-bold text-emerald-700">{stats.today_attendances}</CardTitle>
                         </CardHeader>
+                        <CardContent className="pt-0 text-xs text-slate-500 flex justify-between">
+                            <span>Presensi terverifikasi</span>
+                            {stats.today_late > 0 && (
+                                <span className="text-red-600 font-bold">({stats.today_late} Terlambat)</span>
+                            )}
+                        </CardContent>
                     </Card>
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardDescription>Menunggu Persetujuan</CardDescription>
-                            <CardTitle className="text-3xl font-bold text-amber-600">{pendingRequests.length}</CardTitle>
+
+                    <Card className="border-amber-100 bg-amber-50/20 shadow-sm">
+                        <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                                <CardDescription className="font-semibold text-slate-600">Cuti / Izin Pending</CardDescription>
+                                <FileText className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <CardTitle className="text-3xl font-bold text-amber-600">{stats.pending_leaves}</CardTitle>
                         </CardHeader>
+                        <CardContent className="pt-0 text-xs text-slate-500">
+                            Pengajuan menunggu persetujuan
+                        </CardContent>
                     </Card>
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardDescription>Sudah Diproses</CardDescription>
-                            <CardTitle className="text-3xl font-bold text-green-600">{processedRequests.length}</CardTitle>
+
+                    <Card className="border-purple-100 bg-purple-50/20 shadow-sm">
+                        <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                                <CardDescription className="font-semibold text-slate-600">Reset Password</CardDescription>
+                                <Key className="h-5 w-5 text-purple-600" />
+                            </div>
+                            <CardTitle className="text-3xl font-bold text-purple-600">{stats.pending_password_resets}</CardTitle>
                         </CardHeader>
+                        <CardContent className="pt-0 text-xs text-slate-500">
+                            Permintaan pending
+                        </CardContent>
                     </Card>
                 </div>
 

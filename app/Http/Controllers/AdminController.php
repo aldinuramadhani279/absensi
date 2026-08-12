@@ -74,12 +74,22 @@ class AdminController extends Controller
 
         $lateToleranceMinutes = (int) \App\Models\Setting::get('late_tolerance_minutes', '10');
 
+        $stats = [
+            'total_employees'        => \App\Models\User::where('is_admin', false)->count(),
+            'today_attendances'      => \App\Models\Attendance::whereDate('created_at', $today)->count(),
+            'today_late'             => \App\Models\Attendance::whereDate('created_at', $today)->where('status', 'terlambat')->count(),
+            'pending_leaves'         => \App\Models\LeaveRequest::where('status', 'pending')->count(),
+            'pending_travels'        => \App\Models\TravelRequest::where('status', 'pending')->count(),
+            'pending_password_resets' => \App\Models\PasswordResetRequest::where('status', 'pending')->count(),
+        ];
+
         return Inertia::render('Admin/Dashboard', [
             'requests'             => $requests,
             'duplicateIpAlerts'    => $duplicateIpAlerts,
             'blockDuplicateIp'     => $blockDuplicateIp,
             'customShiftAlerts'    => $customShiftAlerts,
             'lateToleranceMinutes' => $lateToleranceMinutes,
+            'stats'                => $stats,
         ]);
     }
 

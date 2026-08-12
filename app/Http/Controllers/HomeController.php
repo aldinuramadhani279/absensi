@@ -12,10 +12,20 @@ class HomeController extends Controller
     {
         $user = Auth::user();
 
-        // [FIX] Prioritas 1: Cari sesi aktif (belum clock out) TANPA BATASAN WAKTU
-        // Sesi dari hari mana pun yang belum ditutup akan ditemukan
+        // Auto-close any stale unclosed attendance for this user older than 24 hours
+        \App\Models\Attendance::where('user_id', $user->id)
+            ->whereNull('clock_out')
+            ->where('is_auto_closed', false)
+            ->where('clock_in', '<', now()->subHours(24))
+            ->update([
+                'is_auto_closed' => true,
+                'notes'          => 'Lupa Clock Out (System Auto Closed)'
+            ]);
+
+        // Prioritas 1: Cari sesi aktif (belum clock out) dalam 24 jam terakhir
         $activeAttendance = \App\Models\Attendance::where('user_id', $user->id)
             ->whereNull('clock_out')
+            ->where('clock_in', '>=', now()->subHours(24))
             ->with('shift')
             ->orderBy('clock_in', 'desc')
             ->first();

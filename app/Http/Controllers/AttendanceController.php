@@ -81,13 +81,24 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Shift tidak valid untuk jabatan Anda.'], 403);
         }
 
-        // [FIX] Cek sesi aktif TANPA BATASAN WAKTU agar sesi dari hari sebelumnya juga terdeteksi
+        // Auto-close any stale unclosed attendance older than 24 hours for this user
+        Attendance::where('user_id', $user->id)
+            ->whereNull('clock_out')
+            ->where('is_auto_closed', false)
+            ->where('clock_in', '<', now()->subHours(24))
+            ->update([
+                'is_auto_closed' => true,
+                'notes'          => 'Lupa Clock Out (System Auto Closed)'
+            ]);
+
+        // Cek sesi aktif yang valid (dimulai dalam 24 jam terakhir)
         $existingActive = Attendance::where('user_id', $user->id)
             ->whereNull('clock_out')
+            ->where('clock_in', '>=', now()->subHours(24))
             ->first();
 
         if ($existingActive) {
-            return response()->json(['message' => 'Anda masih memiliki sesi shift yang sedang berjalan. Silakan Clock Out atau gunakan tombol Lupa Clock Out terlebih dahulu.'], 400);
+            return response()->json(['message' => 'Anda masih memiliki sesi shift yang sedang berjalan. Silakan Clock Out terlebih dahulu.'], 400);
         }
 
         // Validasi: IP Address ganda hari ini (dikontrol oleh Pengaturan Admin ON/OFF)
@@ -198,11 +209,20 @@ class AttendanceController extends Controller
 
         $user = Auth::user();
 
-        // [FIX C-1] Cari absensi yang belum clock out dalam 30 jam terakhir
-        // Tidak ada batasan tanggal — mendukung shift malam yang melewati tengah malam
+        // Auto-close any stale unclosed attendance older than 24 hours for this user
+        Attendance::where('user_id', $user->id)
+            ->whereNull('clock_out')
+            ->where('is_auto_closed', false)
+            ->where('clock_in', '<', now()->subHours(24))
+            ->update([
+                'is_auto_closed' => true,
+                'notes'          => 'Lupa Clock Out (System Auto Closed)'
+            ]);
+
+        // Cari absensi yang belum clock out dalam 24 jam terakhir
         $attendance = Attendance::where('user_id', $user->id)
             ->whereNull('clock_out')
-            ->where('clock_in', '>=', now()->subHours(30))
+            ->where('clock_in', '>=', now()->subHours(24))
             ->orderBy('clock_in', 'desc')
             ->first();
 

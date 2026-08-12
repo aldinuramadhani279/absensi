@@ -28,6 +28,8 @@ interface Attendance {
     clock_in: string
     clock_out: string | null
     status: string
+    is_auto_closed?: boolean
+    shift?: { name: string; start_time: string; end_time: string }
 }
 interface User {
     id: number;
@@ -59,14 +61,13 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     // Local state
     const [attendance, setAttendance] = useState<Attendance | null>(initialAttendance)
     const [selectedShift, setSelectedShift] = useState<string>("")
-    const [isCustomShift, setIsCustomShift] = useState(false)
-    const [customShiftStart, setCustomShiftStart] = useState("")
-    const [customShiftEnd, setCustomShiftEnd] = useState("")
+    const [customShiftStart, setCustomShiftStart] = useState<string>("")
 
-    // [DOUBLE SHIFT] State untuk lanjut double shift (absen shift berikutnya tanpa hapus shift sebelumnya)
+    // [DOUBLE SHIFT] State untuk lanjut double shift
     const [isDoubleShiftMode, setIsDoubleShiftMode] = useState(false)
     const [submitProgressText, setSubmitProgressText] = useState<string>("")
     const [isForgotLoading, setIsForgotLoading] = useState(false)
+    const [showSessionExpired, setShowSessionExpired] = useState(false)
 
     const [isClockingIn, setIsClockingIn] = useState(false)
     const [isClockingOut, setIsClockingOut] = useState(false)
@@ -265,15 +266,9 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
 
     // Open capture dialog — minta izin kamera dulu, baru buka dialog
     const openCaptureDialog = async (type: "in" | "out") => {
-        if (type === "in") {
-            if (!selectedShift) {
-                toast({ variant: "destructive", title: "Pilih Shift" });
-                return;
-            }
-            if (isCustomShift && (!customShiftStart || !customShiftEnd)) {
-                toast({ variant: "destructive", title: "Isi waktu mulai dan selesai shift custom" });
-                return;
-            }
+        if (type === "in" && !selectedShift) {
+            toast({ variant: "destructive", title: "Pilih Shift terlebih dahulu" });
+            return;
         }
 
         actionTypeRef.current = type;
@@ -312,7 +307,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         } catch (err: any) {
             console.error('Camera error, falling back to file input:', err);
             stopCamera(); // Pastikan hardware kamera dilepas dulu sebelum fallback
-            if (!isMobile) {
+            if (!isMobileOrTouch) {
                 toast({ variant: "destructive", title: "harap absen menggunakan HP" });
                 return;
             }
@@ -407,19 +402,17 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
         setSubmitProgressText("[2/2] Mengirim Foto...");
         try {
             const formData = new FormData();
-            formData.append('shift_id', selectedShift);  // 'custom' jika shift custom
+            formData.append('shift_id', selectedShift);
             formData.append('photo', photoBlob, 'clock_in.jpg');
             formData.append('latitude', lat.toString());
             formData.append('longitude', lng.toString());
-            // Custom shift fields
-            if (isCustomShift) {
+            if (customShiftStart) {
                 formData.append('custom_shift_start', customShiftStart);
-                formData.append('custom_shift_end', customShiftEnd);
             }
 
             const response = await axios.post("/api/clockin", formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
-                timeout: 45000 // 45 seconds timeout safeguard
+                timeout: 45000
             });
 
             const newAttendance = response.data.attendance;
@@ -434,7 +427,11 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
             setIsDoubleShiftMode(false);
             router.reload({ only: ['attendance'] });
         } catch (error: any) {
-            let errorMsg = "Terjadi kesalahan jaringan saat absensi.";
+            if (error.response?.status === 401 || error.response?.status === 419) {
+                setShowSessionExpired(true);
+                return;
+            }
+            let errorMsg = "Terjadi kesalahan jaringan saat presensi.";
             if (error.code === 'ECONNABORTED') {
                 errorMsg = "Koneksi jaringan sangat lambat. Silakan periksa sinyal HP Anda dan coba lagi.";
             } else if (error.response?.data?.message) {
@@ -478,7 +475,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
 
             const response = await axios.post("/api/clockout", formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
-                timeout: 45000 // 45 seconds timeout safeguard
+                timeout: 45000
             });
             toast({ title: "Clock Out Berhasil!" });
             router.reload({
@@ -488,7 +485,11 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 }
             });
         } catch (error: any) {
-            let errorMsg = "Terjadi kesalahan jaringan saat absensi.";
+            if (error.response?.status === 401 || error.response?.status === 419) {
+                setShowSessionExpired(true);
+                return;
+            }
+            let errorMsg = "Terjadi kesalahan jaringan saat presensi.";
             if (error.code === 'ECONNABORTED') {
                 errorMsg = "Koneksi jaringan sangat lambat. Silakan periksa sinyal HP Anda dan coba lagi.";
             } else if (error.response?.data?.message) {
@@ -573,7 +574,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 <div className="container mx-auto px-4 py-4 flex items-center justify-between">
                     <div>
                         <h1 className="text-xl font-bold text-gray-900">Sistem Presensi</h1>
-                        <p className="text-sm text-muted-foreground">Karyawan</p>
+                        <p className="text-sm text-muted-foreground">RST dr. Asmir Salatiga</p>
                     </div>
                     <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2"><LogOut className="h-4 w-4" />Keluar</Button>
                 </div>
@@ -612,10 +613,13 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                     </Alert>
                 )}
 
+                {/* Peringatan sesi berjalan sangat lama (>14 jam) */}
                 {has_forgot_clock_out && (
-                    <Alert className="mb-6 border-yellow-300 bg-yellow-50 text-yellow-800">
-                        <Clock className="h-4 w-4" />
-                        <AlertDescription>Anda lupa melakukan clock out pada hari sebelumnya. Harap hubungi admin untuk penyesuaian.</AlertDescription>
+                    <Alert className="mb-6 border-orange-300 bg-orange-50 text-orange-900">
+                        <Clock className="h-4 w-4 text-orange-600" />
+                        <AlertDescription>
+                            <strong>Perhatian:</strong> Sesi presensi Anda sudah berlangsung lebih dari 14 jam. Jika Anda lupa Clock Out kemarin, gunakan tombol <strong>"Lupa Clock Out"</strong> di bawah.
+                        </AlertDescription>
                     </Alert>
                 )}
 
@@ -624,13 +628,14 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                         <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-blue-600" />Status Presensi Hari Ini</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        {!attendance || (hasClockOut && isDoubleShiftMode) || (hasClockOut && !isDoubleShiftAvailable) ? (
+                        {/* ─── BRANCH 1: Tidak ada sesi aktif → tampilkan form Clock In ─── */}
+                        {(!attendance || (hasClockOut && isDoubleShiftMode) || (hasClockOut && !isDoubleShiftAvailable)) ? (
                             <div className="space-y-4">
                                 {isDoubleShiftMode && attendance && (
                                     <Alert className="border-indigo-300 bg-indigo-50 text-indigo-900 text-left">
                                         <RefreshCw className="h-4 w-4 text-indigo-600" />
                                         <AlertDescription>
-                                            <strong>Mode Double Shift Active:</strong> Presensi <strong>{attendance.shift?.name}</strong> sebelumnya telah selesai dan tersimpan rapi di Riwayat. Silakan pilih shift baru di bawah ini untuk Clock In shift berikutnya.
+                                            <strong>Mode Double Shift Aktif:</strong> Presensi shift <strong>{attendance.shift?.name}</strong> sebelumnya telah selesai dan tersimpan di Riwayat. Silakan pilih shift baru untuk Clock In berikutnya.
                                         </AlertDescription>
                                     </Alert>
                                 )}
@@ -638,7 +643,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                 {!isDoubleShiftMode && (
                                     <p className="text-center text-muted-foreground">Anda belum melakukan clock in hari ini.</p>
                                 )}
-                                
+
                                 <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
                                     <Label htmlFor="shift" className="text-slate-700">
                                         {isDoubleShiftMode ? "1. Pilih Shift Berikutnya (Double Shift)" : "1. Pilih Shift Kerja"}
@@ -647,46 +652,37 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                         value={selectedShift}
                                         onValueChange={(val) => {
                                             setSelectedShift(val);
-                                            setIsCustomShift(val === 'custom');
-                                            if (val !== 'custom') {
-                                                setCustomShiftStart("");
-                                                setCustomShiftEnd("");
-                                            }
+                                            setCustomShiftStart("");
                                         }}
                                     >
                                         <SelectTrigger id="shift" className="bg-white"><SelectValue placeholder="Pilih shift kerja Anda" /></SelectTrigger>
                                         <SelectContent>
                                             {(shifts || []).map((shift) => (
-                                                <SelectItem key={shift.id} value={shift.id.toString()}>{shift.name} ({shift.start_time.substring(0, 5)} - {shift.end_time.substring(0, 5)})</SelectItem>
+                                                <SelectItem key={shift.id} value={shift.id.toString()}>
+                                                    {shift.name} {shift.name.toLowerCase().includes('custom') ? '(Jam Bebas / Custom)' : `(${shift.start_time.substring(0, 5)} - ${shift.end_time.substring(0, 5)})`}
+                                                </SelectItem>
                                             ))}
-                                            {/* [CUSTOM SHIFT] Opsi tambahan untuk shift di luar jadwal */}
-                                            <SelectItem value="custom">⏰ Shift Custom (Tentukan Sendiri)</SelectItem>
                                         </SelectContent>
                                     </Select>
 
-                                    {/* [CUSTOM SHIFT] Input waktu muncul saat pilih shift custom */}
-                                    {isCustomShift && (
-                                        <div className="grid grid-cols-2 gap-3 pt-2">
-                                            <div className="space-y-1">
-                                                <Label className="text-xs text-slate-600">Jam Mulai</Label>
-                                                <input
-                                                    type="time"
-                                                    value={customShiftStart}
-                                                    onChange={e => setCustomShiftStart(e.target.value)}
-                                                    className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <Label className="text-xs text-slate-600">Jam Selesai</Label>
-                                                <input
-                                                    type="time"
-                                                    value={customShiftEnd}
-                                                    onChange={e => setCustomShiftEnd(e.target.value)}
-                                                    className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                                    required
-                                                />
-                                            </div>
+                                    {/* Input Jam Masuk Custom jika memilih Shift Custom */}
+                                    {selectedShift && (shifts || []).find(s => String(s.id) === selectedShift)?.name.toLowerCase().includes('custom') && (
+                                        <div className="space-y-1.5 pt-2 border-t border-slate-200">
+                                            <Label htmlFor="custom_start" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                                                <Clock className="h-3.5 w-3.5 text-indigo-600" />
+                                                Tentukan Jam Masuk (Opsional)
+                                            </Label>
+                                            <input
+                                                id="custom_start"
+                                                type="time"
+                                                value={customShiftStart}
+                                                onChange={e => setCustomShiftStart(e.target.value)}
+                                                placeholder="HH:mm"
+                                                className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                            />
+                                            <p className="text-[11px] text-slate-500">
+                                                *Jika dikosongkan, jam masuk akan dicatat sesuai waktu saat Anda klik Clock In. Jam keluar akan dicatat otomatis saat Clock Out nanti.
+                                            </p>
                                         </div>
                                     )}
                                 </div>
@@ -699,6 +695,8 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     </Button>
                                 )}
                             </div>
+
+                        /* ─── BRANCH 2: Sudah Clock Out Normal → tampilkan ringkasan + Double Shift ─── */
                         ) : isDoubleShiftAvailable && attendance ? (
                             <div className="text-center p-6 bg-green-50 rounded-xl border border-green-100">
                                 <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
@@ -708,7 +706,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Masuk</p><p className="font-bold text-lg">{parseDate(attendance.clock_in)?.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) ?? '-'}</p></div>
                                     <div><p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Waktu Pulang</p><p className="font-bold text-lg">{parseDate(attendance.clock_out)?.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) ?? '-'}</p></div>
                                 </div>
-                                {/* [DOUBLE SHIFT] Tombol Lanjut Double Shift */}
+                                {/* Double Shift hanya muncul setelah Clock Out NORMAL (bukan lupa clockout) */}
                                 <Button
                                     variant="default"
                                     size="lg"
@@ -719,39 +717,47 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                     ➕ Lanjut Double Shift
                                 </Button>
                             </div>
+
+                        /* ─── BRANCH 3: Sesi Aktif (sudah Clock In, belum Clock Out) ─── */
                         ) : attendance ? (
                             <div className="space-y-6">
                                 <div className="text-center p-6 bg-blue-50/80 rounded-xl border border-blue-100">
                                     <p className="text-sm text-blue-800/70 font-medium uppercase tracking-wider mb-1">Waktu Masuk</p>
                                     <p className="text-4xl font-black text-blue-900 tracking-tight">{parseDate(attendance.clock_in)?.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) ?? '-'}</p>
-                                    {/* Show status badge if available */}
                                     {attendance.status && (
-                                        <div className={`mt-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${attendance.status === 'terlambat' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'
-                                            }`}>
+                                        <div className={`mt-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${
+                                            attendance.status === 'terlambat' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'
+                                        }`}>
                                             {attendance.status === 'terlambat' ? 'TERLAMBAT' : 'TEPAT WAKTU'}
+                                        </div>
+                                    )}
+                                    {/* Badge lupa clockout jika sesi ini adalah sesi lama (>14 jam) */}
+                                    {has_forgot_clock_out && (
+                                        <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700 border border-orange-200">
+                                            <Clock className="h-3 w-3" /> Sesi berjalan lama
                                         </div>
                                     )}
                                 </div>
                                 <div className="space-y-2">
-                                     <Button onClick={() => openCaptureDialog("out")} disabled={isClockingOut} className="w-full h-12 text-md font-medium" variant="destructive" size="lg">
+                                    {/* Tombol Clock Out — aksi utama */}
+                                    <Button onClick={() => openCaptureDialog("out")} disabled={isClockingOut} className="w-full h-12 text-md font-medium" variant="destructive" size="lg">
                                         {isClockingOut ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />{submitProgressText || "Memproses..."}</> : <><Camera className="mr-2 h-5 w-5" />Ambil Foto & Clock Out</>}
                                     </Button>
-                                    <p className="text-xs text-center text-muted-foreground mt-2">Pastikan Anda berada di area Rumah Sakit untuk melakukan absen pulang.</p>
+                                    <p className="text-xs text-center text-muted-foreground mt-2">Pastikan Anda berada di area Rumah Sakit untuk melakukan presensi pulang.</p>
 
-                                    {/* [FITUR LUPA CLOCK OUT] Tombol muncul saat ada sesi terlupakan */}
-                                    {has_forgot_clock_out && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="w-full mt-1 border-amber-300 text-amber-700 hover:bg-amber-50 gap-2"
-                                            onClick={handleForgotClockOut}
-                                            disabled={isForgotLoading}
-                                        >
-                                            {isForgotLoading
-                                                ? <><Loader2 className="h-4 w-4 animate-spin" /> Mereset sesi...</>
-                                                : <>🕐 Lupa Clock Out? Klik di sini untuk reset & absen baru</>}
-                                        </Button>
-                                    )}
+                                    {/* Tombol Lupa Clock Out — SELALU muncul saat ada sesi aktif */}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full mt-1 border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
+                                        onClick={handleForgotClockOut}
+                                        disabled={isForgotLoading}
+                                    >
+                                        {isForgotLoading
+                                            ? <><Loader2 className="h-4 w-4 animate-spin" /> Mereset sesi...</>
+                                            : <>🕐 Lupa Clock Out? Reset Sesi &amp; Absen Baru</>}
+                                    </Button>
+                                    <p className="text-xs text-center text-muted-foreground">Tombol di atas untuk mereset sesi jika Anda lupa clock out kemarin.</p>
                                 </div>
                             </div>
                         ) : null}
@@ -796,7 +802,7 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 <Dialog open={showCameraDialog} onOpenChange={handleCloseCapture}>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
-                            <DialogTitle>Verifikasi Lokasi & Wajah</DialogTitle>
+                            <DialogTitle>Verifikasi Lokasi &amp; Wajah</DialogTitle>
                             <DialogDescription>
                                 Silakan arahkan wajah Anda ke kamera. Pastikan pencahayaan cukup.
                             </DialogDescription>
@@ -822,6 +828,27 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                {/* Dialog Sesi Expired (401 / 419) */}
+                <AlertDialog open={showSessionExpired} onOpenChange={setShowSessionExpired}>
+                    <AlertDialogContent className="sm:max-w-md text-center">
+                        <AlertDialogHeader className="flex flex-col items-center justify-center">
+                            <AlertCircle className="h-16 w-16 text-amber-500 mb-3" />
+                            <AlertDialogTitle className="text-xl font-bold text-gray-800">Sesi Anda Telah Habis</AlertDialogTitle>
+                            <AlertDialogDescription className="text-gray-600 mt-2">
+                                Halaman ini sudah terlalu lama tidak diperbarui. Silakan <strong>refresh browser</strong> untuk melanjutkan presensi.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="sm:justify-center mt-4">
+                            <AlertDialogAction
+                                className="w-full bg-blue-600 hover:bg-blue-700 font-bold"
+                                onClick={() => window.location.reload()}
+                            >
+                                🔄 Refresh Browser Sekarang
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
                 {/* Status Popup Dialog (unchanged) */}
                 <AlertDialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
@@ -948,10 +975,6 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                         </form>
                     </DialogContent>
                 </Dialog>
-
-
-
-
 
                 {/* Input File Fallback untuk Kamera Bawaan HP */}
                 <input 

@@ -25,6 +25,7 @@ class Attendance extends Model
         'photo_out',
         'lat_out',
         'lon_out',
+        'is_auto_closed',
     ];
 
     public function user()

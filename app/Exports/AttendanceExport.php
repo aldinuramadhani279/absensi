@@ -28,7 +28,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
         // 1. Get Attendances
         $query = Attendance::with(['user.profession', 'shift']);
 
-        if ($this->professionId) {
+        if ($this->professionId && $this->professionId !== 'all') {
             $query->whereHas('user', function ($q) {
                 $q->where('profession_id', $this->professionId);
             });
@@ -47,7 +47,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
         // 2. Get Travel Requests (Dinas)
         $trQuery = \App\Models\TravelRequest::where('status', 'approved')->with('user.profession');
 
-        if ($this->professionId) {
+        if ($this->professionId && $this->professionId !== 'all') {
             $trQuery->whereHas('user', function ($q) {
                 $q->where('profession_id', $this->professionId);
             });

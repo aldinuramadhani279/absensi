@@ -52,7 +52,7 @@ export default function LoginPage() {
             <Card className="w-full max-w-md shadow-xl border-0">
                 <CardHeader className="space-y-1 pb-6">
                     <CardTitle className="text-2xl font-bold text-center">Selamat Datang</CardTitle>
-                    <CardDescription className="text-center text-base">Masuk ke Sistem Presensi Karyawan</CardDescription>
+                    <CardDescription className="text-center text-base">Masuk ke Sistem Presensi dr Asmir Salatiga</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleLogin} className="space-y-4">

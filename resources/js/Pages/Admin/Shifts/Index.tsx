@@ -119,18 +119,38 @@ export default function ShiftsIndex({ shifts, professions }: { shifts: Shift[], 
                 </div>
 
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Tambah Shift Baru</CardTitle>
-                        <CardDescription>Buat jadwal shift baru dan kaitkan dengan satu atau lebih jabatan sekaligus.</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <div>
+                            <CardTitle>Tambah Shift Baru</CardTitle>
+                            <CardDescription>Buat jadwal shift baru dan kaitkan dengan satu atau lebih jabatan sekaligus.</CardDescription>
+                        </div>
+                        {/* Preset Quick Button for Shift Custom */}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 font-semibold gap-2"
+                            onClick={() => {
+                                setData(prev => ({
+                                    ...prev,
+                                    name: 'Shift Custom',
+                                    start_time: prev.start_time || '08:00',
+                                    end_time: prev.end_time || '16:00',
+                                }));
+                                toast({ title: "Mode Shift Custom Aktif", description: "Silakan pilih jabatan di bawah untuk memberikan hak Shift Custom." });
+                            }}
+                        >
+                            ⏰ Preset Shift Custom
+                        </Button>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                                 <div className="space-y-2">
                                     <Label htmlFor="name">Nama Shift</Label>
                                     <Input
                                         id="name"
-                                        placeholder="Nama Shift (e.g., Pagi, Malam)"
+                                        placeholder="Nama Shift (e.g., Pagi, Malam, Shift Custom)"
                                         value={data.name}
                                         onChange={(e) => setData('name', e.target.value)}
                                         disabled={processing}
@@ -138,29 +158,41 @@ export default function ShiftsIndex({ shifts, professions }: { shifts: Shift[], 
                                     {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="start_time">Jam Mulai</Label>
-                                    <Input
-                                        id="start_time"
-                                        type="time"
-                                        value={data.start_time}
-                                        onChange={(e) => setData('start_time', e.target.value)}
-                                        disabled={processing}
-                                    />
-                                    {errors.start_time && <p className="text-sm text-red-500">{errors.start_time}</p>}
-                                </div>
+                                {data.name.toLowerCase().includes('custom') ? (
+                                    <div className="col-span-1 md:col-span-2 bg-amber-50 border border-amber-300 p-3 rounded-lg flex items-center gap-3 text-amber-900 shadow-sm">
+                                        <Clock className="h-5 w-5 text-amber-600 shrink-0" />
+                                        <div className="text-xs sm:text-sm">
+                                            <p className="font-bold text-amber-950">Mode Shift Custom (Jam Bebas)</p>
+                                            <p className="text-amber-800">Silakan pilih jabatan di bawah untuk memberikan hak Shift Custom. Karyawan dapat menentukan jam masuk sendiri dan jam keluar dicatat saat Clock Out.</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="start_time">Jam Mulai</Label>
+                                            <Input
+                                                id="start_time"
+                                                type="time"
+                                                value={data.start_time}
+                                                onChange={(e) => setData('start_time', e.target.value)}
+                                                disabled={processing}
+                                            />
+                                            {errors.start_time && <p className="text-sm text-red-500">{errors.start_time}</p>}
+                                        </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="end_time">Jam Selesai</Label>
-                                    <Input
-                                        id="end_time"
-                                        type="time"
-                                        value={data.end_time}
-                                        onChange={(e) => setData('end_time', e.target.value)}
-                                        disabled={processing}
-                                    />
-                                    {errors.end_time && <p className="text-sm text-red-500">{errors.end_time}</p>}
-                                </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="end_time">Jam Selesai</Label>
+                                            <Input
+                                                id="end_time"
+                                                type="time"
+                                                value={data.end_time}
+                                                onChange={(e) => setData('end_time', e.target.value)}
+                                                disabled={processing}
+                                            />
+                                            {errors.end_time && <p className="text-sm text-red-500">{errors.end_time}</p>}
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Multi-select Jabatan */}
@@ -253,7 +285,14 @@ export default function ShiftsIndex({ shifts, professions }: { shifts: Shift[], 
                                 {paginatedShifts.length > 0 ? (
                                     paginatedShifts.map((shift) => (
                                         <TableRow key={shift.id}>
-                                            <TableCell className='font-medium'>{shift.name}</TableCell>
+                                            <TableCell className='font-medium flex items-center gap-2'>
+                                                {shift.name}
+                                                {shift.name.toLowerCase().includes('custom') && (
+                                                    <span className="px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 text-xs font-semibold rounded-full flex items-center gap-1">
+                                                        ⏰ Custom
+                                                    </span>
+                                                )}
+                                            </TableCell>
                                             <TableCell>
                                                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
                                                     {shift.profession?.name || 'Tanpa Jabatan'}

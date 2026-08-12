@@ -32,20 +32,22 @@ class ShiftController extends Controller
      */
     public function store(Request $request)
     {
+        $isCustom = str_contains(strtolower($request->name ?? ''), 'custom');
+
         $validated = $request->validate([
-            'name'           => 'required|string|max:255',
-            'profession_ids' => 'required|array|min:1',
+            'name'             => 'required|string|max:255',
+            'profession_ids'   => 'required|array|min:1',
             'profession_ids.*' => 'exists:professions,id',
-            'start_time'     => 'required|date_format:H:i',
-            'end_time'       => 'required|date_format:H:i',
+            'start_time'       => $isCustom ? 'nullable|date_format:H:i' : 'required|date_format:H:i',
+            'end_time'         => $isCustom ? 'nullable|date_format:H:i' : 'required|date_format:H:i',
         ]);
 
         foreach ($validated['profession_ids'] as $professionId) {
             Shift::create([
                 'name'          => $validated['name'],
                 'profession_id' => $professionId,
-                'start_time'    => $validated['start_time'],
-                'end_time'      => $validated['end_time'],
+                'start_time'    => $validated['start_time'] ?? '00:00',
+                'end_time'      => $validated['end_time'] ?? '23:59',
             ]);
         }
 

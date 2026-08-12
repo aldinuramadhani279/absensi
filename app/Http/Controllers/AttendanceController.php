@@ -67,37 +67,27 @@ class AttendanceController extends Controller
 
     public function clockIn(Request $request)
     {
-        $isCustomShift = $request->input('shift_id') === 'custom';
-
-        // Validasi dasar
+        // Validasi dasar — shift harus selalu dari DB (tidak ada lagi custom shift oleh user)
         $request->validate([
-            'shift_id'           => 'required',
-            'photo'              => 'required',
-            'custom_shift_start' => $isCustomShift ? 'required|date_format:H:i' : 'nullable',
-            'custom_shift_end'   => $isCustomShift ? 'required|date_format:H:i' : 'nullable',
+            'shift_id' => 'required|exists:shifts,id',
+            'photo'    => 'required',
         ]);
 
         $user = Auth::user();
-        $shift = null;
 
-        if (!$isCustomShift) {
-            // Validasi shift normal: harus ada di DB dan sesuai profesi user
-            $request->validate(['shift_id' => 'exists:shifts,id']);
-            $shift = Shift::find($request->shift_id);
-            if (!$shift || $shift->profession_id !== $user->profession_id) {
-                return response()->json(['message' => 'Shift tidak valid untuk jabatan Anda.'], 403);
-            }
+        // Validasi shift harus sesuai profesi user
+        $shift = Shift::find($request->shift_id);
+        if (!$shift || $shift->profession_id !== $user->profession_id) {
+            return response()->json(['message' => 'Shift tidak valid untuk jabatan Anda.'], 403);
         }
 
-        // [DOUBLE SHIFT SUPPORT] Cek apakah user sedang aktif di shift (belum clock out)
-        // Karyawan yang sudah clock out dari shift 1 dapat melakukan clock in untuk shift 2 (Double Shift)
+        // [FIX] Cek sesi aktif TANPA BATASAN WAKTU agar sesi dari hari sebelumnya juga terdeteksi
         $existingActive = Attendance::where('user_id', $user->id)
             ->whereNull('clock_out')
-            ->where('clock_in', '>=', now()->subHours(24))
             ->first();
 
         if ($existingActive) {
-            return response()->json(['message' => 'Anda masih memiliki sesi shift yang sedang berjalan. Silakan Clock Out terlebih dahulu.'], 400);
+            return response()->json(['message' => 'Anda masih memiliki sesi shift yang sedang berjalan. Silakan Clock Out atau gunakan tombol Lupa Clock Out terlebih dahulu.'], 400);
         }
 
         // Validasi: IP Address ganda hari ini (dikontrol oleh Pengaturan Admin ON/OFF)
@@ -116,15 +106,18 @@ class AttendanceController extends Controller
             }
         }
 
+        $isCustomShift = str_contains(strtolower($shift->name ?? ''), 'custom');
+        $customStart = $isCustomShift ? ($request->input('custom_shift_start') ?: now()->format('H:i')) : null;
+
         // Simpan Foto
         $photoPath = $this->savePhoto($request, 'photo', 'in_' . $user->id);
 
         $attendance = Attendance::create([
             'user_id'            => $user->id,
             'date'               => now()->toDateString(),
-            'shift_id'           => $isCustomShift ? null : $request->shift_id,
-            'custom_shift_start' => $isCustomShift ? $request->custom_shift_start : null,
-            'custom_shift_end'   => $isCustomShift ? $request->custom_shift_end : null,
+            'shift_id'           => $request->shift_id,
+            'custom_shift_start' => $customStart,
+            'custom_shift_end'   => null,
             'clock_in'           => now(),
             'status'             => 'present',
             'ip_address'         => $request->ip(),
@@ -140,7 +133,13 @@ class AttendanceController extends Controller
         $statusCode     = 'ontime';
         $timeDiffMessage = '';
 
-        if ($shift) {
+        if ($isCustomShift) {
+            $statusMessage   = 'Shift Custom';
+            $status          = 'tepat waktu';
+            $statusCode      = 'ontime';
+            $timeDiffMessage = "Jam Masuk Custom: {$customStart}";
+            $attendance->update(['status' => 'tepat waktu']);
+        } elseif ($shift) {
             $shiftStartPart = \Carbon\Carbon::parse($shift->start_time);
             $shiftStart     = now()->setTime($shiftStartPart->hour, $shiftStartPart->minute, $shiftStartPart->second);
             $clockInTime    = now();
@@ -180,11 +179,6 @@ class AttendanceController extends Controller
 
             $attendance->update(['status' => $status]);
             $attendance->refresh();
-        } elseif ($isCustomShift) {
-            // Shift custom: status selalu tepat waktu, label khusus
-            $statusMessage   = 'Shift Custom';
-            $statusCode      = 'custom';
-            $timeDiffMessage = "Shift custom: {$request->custom_shift_start} - {$request->custom_shift_end}";
         }
 
         return response()->json([
@@ -220,11 +214,12 @@ class AttendanceController extends Controller
         $photoPath = $this->savePhoto($request, 'photo', 'out_' . $user->id);
 
         $attendance->update([
-            'clock_out'    => now(),
-            'clock_out_ip' => $request->ip(),
-            'photo_out'    => $photoPath,
-            'lat_out'      => $request->latitude ?? null,
-            'lon_out'      => $request->longitude ?? null,
+            'clock_out'        => now(),
+            'clock_out_ip'     => $request->ip(),
+            'custom_shift_end' => now()->format('H:i'), // Catat jam keluar otomatis
+            'photo_out'        => $photoPath,
+            'lat_out'          => $request->latitude ?? null,
+            'lon_out'          => $request->longitude ?? null,
         ]);
 
         return response()->json(['message' => 'Clock Out Berhasil', 'attendance' => $attendance]);
@@ -248,9 +243,10 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Shift tidak valid untuk jabatan Anda.'], 403);
         }
 
-        // Cari attendance terbaru yang sudah clock out dalam 30 jam terakhir
+        // Cari attendance terbaru yang sudah clock out secara normal (bukan auto-closed) dalam 30 jam terakhir
         $attendance = Attendance::where('user_id', $user->id)
             ->whereNotNull('clock_out')
+            ->where('is_auto_closed', false)
             ->where('clock_in', '>=', now()->subHours(30))
             ->orderBy('clock_in', 'desc')
             ->first();
@@ -284,20 +280,20 @@ class AttendanceController extends Controller
      * [FITUR LUPA CLOCK OUT]
      * User melaporkan lupa clock out — auto-close absensi aktif agar bisa clock in fresh.
      * Admin bisa melihat record ini di laporan (is_auto_closed = true).
+     * [FIX] Tidak ada batasan waktu — sesi dari hari mana pun bisa ditutup.
      */
     public function forgotClockOut(Request $request)
     {
         $user = Auth::user();
 
-        // Cari absensi aktif dalam 30 jam terakhir yang belum clock out
+        // [FIX] Cari sesi aktif TANPA BATASAN WAKTU (bukan hanya 30 jam terakhir)
         $attendance = Attendance::where('user_id', $user->id)
             ->whereNull('clock_out')
-            ->where('clock_in', '>=', now()->subHours(30))
             ->orderBy('clock_in', 'desc')
             ->first();
 
         if (!$attendance) {
-            return response()->json(['message' => 'Tidak ada sesi absensi aktif yang ditemukan.'], 404);
+            return response()->json(['message' => 'Tidak ada sesi presensi aktif yang ditemukan.'], 404);
         }
 
         $prevNotes = $attendance->notes ? $attendance->notes . ' | ' : '';
@@ -306,11 +302,11 @@ class AttendanceController extends Controller
             'clock_out'      => now(),
             'clock_out_ip'   => $request->ip(),
             'is_auto_closed' => true,
-            'notes'          => $prevNotes . 'Auto-closed: Laporan lupa clock out oleh karyawan pada ' . now()->format('d/m/Y H:i'),
+            'notes'          => $prevNotes . 'Lupa Clock Out — dikonfirmasi oleh karyawan pada ' . now()->format('d/m/Y H:i'),
         ]);
 
         return response()->json([
-            'message'    => 'Sesi sebelumnya berhasil di-reset. Silakan lakukan Clock In kembali.',
+            'message'    => 'Sesi sebelumnya berhasil direset. Silakan lakukan Clock In kembali.',
             'attendance' => $attendance,
         ]);
     }

@@ -39,6 +39,7 @@ class AttendanceExport implements WithMultipleSheets
     public function sheets(): array
     {
         return [
+            new MatrixAttendanceExport($this->professionId, $this->startDate, $this->endDate),
             new RekapPerKaryawanSheet($this->professionId, $this->startDate, $this->endDate),
             new DetailLogPresensiSheet($this->professionId, $this->startDate, $this->endDate),
         ];

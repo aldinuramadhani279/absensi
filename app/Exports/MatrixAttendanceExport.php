@@ -88,6 +88,7 @@ class MatrixAttendanceExport implements FromCollection, WithHeadings, WithMappin
             ->whereDate('created_at', '>=', $this->startDate)
             ->whereDate('created_at', '<=', $this->endDate)
             ->with('shift')
+            ->orderBy('clock_in', 'asc')
             ->get()
             ->groupBy(function ($item) {
                 $dateStr = $item->date ?: Carbon::parse($item->created_at)->format('Y-m-d');
@@ -130,30 +131,80 @@ class MatrixAttendanceExport implements FromCollection, WithHeadings, WithMappin
                 $key = $user->id . '_' . $dateStr;
 
                 if (isset($attendances[$key])) {
-                    $att = $attendances[$key]->first();
-                    $inTime  = $att->clock_in ? Carbon::parse($att->clock_in)->format('H:i') : '-';
-                    $outTime = $att->clock_out ? Carbon::parse($att->clock_out)->format('H:i') : ($att->is_auto_closed ? '(Lupa)' : '-');
+                    $attList = $attendances[$key];
+                    $count   = $attList->count();
+                    $totalHadir += $count;
 
-                    $cellText = "{$inTime} - {$outTime}";
+                    $timeStrings   = [];
+                    $hasLate       = false;
+                    $hasAutoClosed = false;
+                    $hasCustom     = false;
+                    $hasEarly      = false;
+
+                    foreach ($attList as $att) {
+                        $inTime  = $att->clock_in ? Carbon::parse($att->clock_in)->format('H:i') : '-';
+                        $outTime = $att->clock_out ? Carbon::parse($att->clock_out)->format('H:i') : ($att->is_auto_closed ? '(Lupa)' : '-');
+
+                        $timeStrings[] = "{$inTime}-{$outTime}";
+
+                        if ($att->status === 'terlambat') {
+                            $hasLate = true;
+                            $totalTerlambat++;
+                        }
+                        if ($att->is_auto_closed || ($att->clock_in && !$att->clock_out && Carbon::parse($dateStr)->lt(now()->today()))) {
+                            $hasAutoClosed = true;
+                        }
+                        $isCustom = ($att->shift && str_contains(strtolower($att->shift->name), 'custom')) || !empty($att->custom_shift_start);
+                        if ($isCustom) {
+                            $hasCustom = true;
+                        }
+                        if ($att->status === 'early' || $att->status_code === 'early') {
+                            $hasEarly = true;
+                        }
+                    }
+
+                    // Multi-Attendance (Double Shift) formatting
+                    if ($count > 1) {
+                        $cellText = "[DS] " . implode(" | ", $timeStrings);
+                    } else {
+                        $cellText = $timeStrings[0];
+                    }
+
                     $row[$dateStr] = $cellText;
-                    $totalHadir++;
 
-                    $isCustomShift = ($att->shift && str_contains(strtolower($att->shift->name), 'custom')) || !empty($att->custom_shift_start);
+                    // COLOR PRIORITY HIERARCHY:
+                    // 1. LATE (RED)
+                    // 2. LUPA CLOCK OUT (ORANGE)
+                    // 3. DOUBLE SHIFT (PURPLE/VIOLET)
+                    // 4. SHIFT CUSTOM (PINK)
+                    // 5. EARLY (BLUE)
+                    // 6. ONTIME (GREEN)
 
-                    if ($isCustomShift) {
+                    if ($hasLate) {
+                        // RED for Terlambat
+                        $this->cellColors[$cellCoord] = [
+                            'bg'   => 'FEE2E2', // Light Red
+                            'font' => '991B1B', // Dark Red Text
+                        ];
+                    } elseif ($hasAutoClosed) {
+                        // ORANGE for Lupa Clock Out
+                        $this->cellColors[$cellCoord] = [
+                            'bg'   => 'FFEDD5', // Light Orange
+                            'font' => '9A3412', // Dark Orange Text
+                        ];
+                    } elseif ($count > 1) {
+                        // PURPLE / VIOLET for Double Shift
+                        $this->cellColors[$cellCoord] = [
+                            'bg'   => 'F3E8FF', // Light Purple
+                            'font' => '6B21A8', // Dark Purple Text
+                        ];
+                    } elseif ($hasCustom) {
                         // PINK for Custom Shift
                         $this->cellColors[$cellCoord] = [
                             'bg'   => 'FCE7F3', // Light Pink
                             'font' => '9D174D', // Dark Pink Text
                         ];
-                    } elseif ($att->status === 'terlambat') {
-                        // RED for Late
-                        $totalTerlambat++;
-                        $this->cellColors[$cellCoord] = [
-                            'bg'   => 'FEE2E2', // Light Red
-                            'font' => '991B1B', // Dark Red Text
-                        ];
-                    } elseif ($att->status === 'early' || $att->status_code === 'early') {
+                    } elseif ($hasEarly) {
                         // BLUE for Early
                         $this->cellColors[$cellCoord] = [
                             'bg'   => 'DBEAFE', // Light Blue
@@ -230,7 +281,7 @@ class MatrixAttendanceExport implements FromCollection, WithHeadings, WithMappin
 
         $highestRow = $sheet->getHighestRow();
 
-        // Apply grid borders
+        // Apply grid borders & alignment
         if ($highestRow > 1) {
             $sheet->getStyle("A1:{$lastColLetter}{$highestRow}")->applyFromArray([
                 'borders' => [

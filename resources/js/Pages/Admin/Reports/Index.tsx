@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 export default function ReportsIndex(props: any) {
     // Paranoid safety checks
     const professions = Array.isArray(props.professions) ? props.professions : [];
+    const rooms = Array.isArray(props.rooms) ? props.rooms : [];
     const attendances = Array.isArray(props.attendances) ? props.attendances : [];
     const users = Array.isArray(props.users) ? props.users : [];
     const filters = props.filters || {};

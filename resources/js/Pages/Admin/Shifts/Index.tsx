@@ -24,6 +24,9 @@ interface Shift {
 }
 
 export default function ShiftsIndex({ shifts, professions }: { shifts: Shift[], professions: Profession[] }) {
+    const shiftList = Array.isArray(shifts) ? shifts : [];
+    const professionList = Array.isArray(professions) ? professions : [];
+
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         profession_ids: [] as string[],
@@ -36,9 +39,9 @@ export default function ShiftsIndex({ shifts, professions }: { shifts: Shift[], 
 
     // Filter shifts berdasarkan jabatan yang dipilih
     const filteredShifts = useMemo(() => {
-        if (filterProfession === 'all') return shifts;
-        return shifts.filter(s => String(s.profession?.id) === filterProfession);
-    }, [shifts, filterProfession]);
+        if (filterProfession === 'all') return shiftList;
+        return shiftList.filter(s => String(s.profession?.id) === filterProfession);
+    }, [shiftList, filterProfession]);
 
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;

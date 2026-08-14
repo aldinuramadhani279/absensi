@@ -28,10 +28,39 @@ export default function ReportsIndex(props: any) {
     const itemsPerPage = 10;
     const totalPages = Math.ceil(attendances.length / itemsPerPage);
 
-    // Matrix View States & Logic
     const [viewMode, setViewMode] = useState<'detail' | 'matrix'>('detail');
     const [searchQuery, setSearchQuery] = useState('');
     const [matrixPage, setMatrixPage] = useState(1);
+
+    const formatDateSafe = (dateString: any) => {
+        if (!dateString || dateString === '-') return '-';
+        try {
+            if (typeof dateString === 'string') {
+                const datePart = dateString.split(' ')[0];
+                const parts = datePart.split('-');
+                if (parts.length === 3) {
+                    const year = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1;
+                    const day = parseInt(parts[2]);
+                    const d = new Date(year, month, day);
+                    if (!isNaN(d.getTime())) {
+                        return format(d, 'dd MMM yyyy');
+                    }
+                }
+                const d = new Date(dateString.replace(' ', 'T'));
+                if (!isNaN(d.getTime())) {
+                    return format(d, 'dd MMM yyyy');
+                }
+            }
+            const d = new Date(dateString);
+            if (!isNaN(d.getTime())) {
+                return format(d, 'dd MMM yyyy');
+            }
+            return String(dateString).substring(0, 10);
+        } catch (e) {
+            return '-';
+        }
+    };
 
     useEffect(() => {
         setCurrentPage(1);
@@ -396,7 +425,7 @@ export default function ReportsIndex(props: any) {
                                                          )}
                                                      </TableCell>
                                                     <TableCell>
-                                                        {format(new Date(att.clock_in && att.clock_in !== '-' ? att.clock_in : att.created_at || new Date()), 'dd MMM yyyy')}
+                                                        {formatDateSafe(att.clock_in && att.clock_in !== '-' ? att.clock_in : att.created_at)}
                                                     </TableCell>
                                                     <TableCell>{att.clock_in}</TableCell>
                                                     <TableCell className="font-mono text-xs">

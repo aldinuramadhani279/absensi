@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use App\Models\Profession;
 use App\Models\EmploymentStatus;
+use App\Models\Room;
 
 class ProfileController extends Controller
 {
@@ -17,20 +18,21 @@ class ProfileController extends Controller
      */
     public function index()
     {
-        $user               = Auth::user()->load('profession');
+        $user               = Auth::user()->load(['profession', 'room']);
         $professions        = Profession::orderBy('name')->get(['id', 'name']);
         $employmentStatuses = EmploymentStatus::orderBy('name')->get(['id', 'name', 'code']);
+        $rooms              = Room::orderBy('name')->get(['id', 'name', 'code']);
 
         return Inertia::render('User/Profile', [
             'user'               => $user,
             'professions'        => $professions,
             'employmentStatuses' => $employmentStatuses,
+            'rooms'              => $rooms,
         ]);
     }
 
     /**
      * Update data profil karyawan.
-     * Karyawan hanya bisa mengubah: nama, profesi, NIP, dan foto profil (jika ada).
      */
     public function update(Request $request)
     {
@@ -39,6 +41,7 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'name'          => 'required|string|max:255',
             'profession_id' => 'required|exists:professions,id',
+            'room_id'       => 'nullable|exists:rooms,id',
             'status'        => 'required|string|max:255',
             'nip'           => 'nullable|string|max:255',
             'employee_id'   => 'nullable|string|max:255',
@@ -47,6 +50,7 @@ class ProfileController extends Controller
         $user->update([
             'name'          => $validated['name'],
             'profession_id' => $validated['profession_id'],
+            'room_id'       => $validated['room_id'] ?? null,
             'status'        => $validated['status'],
             'nip'           => $validated['nip'] ?? null,
             'employee_id'   => $validated['employee_id'] ?? null,

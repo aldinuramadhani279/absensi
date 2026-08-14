@@ -25,14 +25,16 @@ class MatrixAttendanceExport implements FromCollection, WithHeadings, WithMappin
     protected $professionId;
     protected $startDate;
     protected $endDate;
+    protected $roomId;
     protected $dates = [];
     protected $cellColors = [];
 
-    public function __construct($professionId, $startDate, $endDate)
+    public function __construct($professionId = null, $startDate = null, $endDate = null, $roomId = null)
     {
         $this->professionId = $professionId;
         $this->startDate    = $startDate ?: now()->startOfMonth()->format('Y-m-d');
         $this->endDate      = $endDate ?: now()->endOfMonth()->format('Y-m-d');
+        $this->roomId       = $roomId;
 
         // Build array of dates
         $start = Carbon::parse($this->startDate);
@@ -66,6 +68,7 @@ class MatrixAttendanceExport implements FromCollection, WithHeadings, WithMappin
             'Status Pegawai',
             'NIP / NRP / ID',
             'Jabatan',
+            'Ruangan',
         ], $dateHeadings, [
             'Total Hadir',
             'Total Terlambat',
@@ -75,10 +78,14 @@ class MatrixAttendanceExport implements FromCollection, WithHeadings, WithMappin
 
     public function collection()
     {
-        $usersQuery = User::where('is_admin', false)->with('profession')->orderBy('name', 'asc');
+        $usersQuery = User::where('is_admin', false)->with(['profession', 'room'])->orderBy('name', 'asc');
 
         if ($this->professionId && $this->professionId !== 'all') {
             $usersQuery->where('profession_id', $this->professionId);
+        }
+
+        if ($this->roomId && $this->roomId !== 'all') {
+            $usersQuery->where('room_id', $this->roomId);
         }
 
         $users = $usersQuery->get();
@@ -118,6 +125,7 @@ class MatrixAttendanceExport implements FromCollection, WithHeadings, WithMappin
                 'status'     => strtoupper($user->status ?? '-'),
                 'nip'        => $user->nip ?? $user->employee_id ?? '-',
                 'profession' => $user->profession->name ?? '-',
+                'room'       => $user->room->name ?? '-',
             ];
 
             $totalHadir     = 0;
@@ -125,7 +133,7 @@ class MatrixAttendanceExport implements FromCollection, WithHeadings, WithMappin
             $totalCutiDinas = 0;
 
             foreach ($this->dates as $dateIndex => $dateStr) {
-                $colIndex = 6 + $dateIndex; // Column F is index 6
+                $colIndex = 7 + $dateIndex; // Column G is index 7
                 $cellCoord = Coordinate::stringFromColumnIndex($colIndex) . $rowNum;
 
                 $key = $user->id . '_' . $dateStr;

@@ -22,6 +22,12 @@ interface EmploymentStatus {
     code: string;
 }
 
+interface Room {
+    id: number;
+    name: string;
+    code?: string;
+}
+
 interface User {
     id: number;
     name: string;
@@ -30,15 +36,46 @@ interface User {
     nip?: string;
     employee_id?: string;
     profession: { id: number; name: string };
+    room?: { id: number; name: string; code?: string };
 }
 
-export default function EmployeesIndex({ employees, professions, employmentStatuses = [] }: { employees: User[], professions: Profession[], employmentStatuses?: EmploymentStatus[] }) {
+interface PaginationLink {
+    url: string | null;
+    label: string;
+    active: boolean;
+}
+
+interface PaginatedUsers {
+    data: User[];
+    current_page: number;
+    last_page: number;
+    total: number;
+    links: PaginationLink[];
+}
+
+export default function EmployeesIndex({
+    employees,
+    professions,
+    employmentStatuses = [],
+    rooms = [],
+    filters
+}: {
+    employees: PaginatedUsers | User[];
+    professions: Profession[];
+    employmentStatuses?: EmploymentStatus[];
+    rooms?: Room[];
+    filters?: { profession_id?: string; room_id?: string; search?: string };
+}) {
+    const employeeData = Array.isArray(employees) ? employees : (employees?.data || []);
+    const pagination = Array.isArray(employees) ? null : employees;
+
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
         password: '',
         status: '',
         profession_id: '',
+        room_id: '',
         nip: '',
         employee_id: ''
     });
@@ -50,21 +87,23 @@ export default function EmployeesIndex({ employees, professions, employmentStatu
     const [isProcessingAction, setIsProcessingAction] = useState(false);
 
     // Filter states
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterProfession, setFilterProfession] = useState<string>('all');
+    const [searchQuery, setSearchQuery] = useState(filters?.search || '');
+    const [filterProfession, setFilterProfession] = useState<string>(filters?.profession_id || 'all');
+    const [filterRoom, setFilterRoom] = useState<string>(filters?.room_id || 'all');
 
     // Filtered employees
     const filteredEmployees = useMemo(() => {
-        return employees.filter(emp => {
+        return employeeData.filter(emp => {
             const matchSearch = searchQuery === '' ||
                 emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (emp.email && emp.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
                 (emp.nip && emp.nip.includes(searchQuery)) ||
                 (emp.employee_id && emp.employee_id.includes(searchQuery));
             const matchProfession = filterProfession === 'all' || String(emp.profession?.id) === filterProfession;
-            return matchSearch && matchProfession;
+            const matchRoom = filterRoom === 'all' || String(emp.room?.id) === filterRoom;
+            return matchSearch && matchProfession && matchRoom;
         });
-    }, [employees, searchQuery, filterProfession]);
+    }, [employeeData, searchQuery, filterProfession, filterRoom]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -194,15 +233,28 @@ export default function EmployeesIndex({ employees, professions, employmentStatu
                                     )}
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="profession">Jabatan</Label>
-                                    <Select onValueChange={(v) => setData('profession_id', v)} value={data.profession_id}>
-                                        <SelectTrigger id="profession"><SelectValue placeholder="Pilih Jabatan" /></SelectTrigger>
-                                        <SelectContent>
-                                            {professions.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.profession_id && <p className="text-sm text-red-500">{errors.profession_id}</p>}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="profession">Jabatan</Label>
+                                        <Select onValueChange={(v) => setData('profession_id', v)} value={data.profession_id}>
+                                            <SelectTrigger id="profession"><SelectValue placeholder="Pilih Jabatan" /></SelectTrigger>
+                                            <SelectContent>
+                                                {professions.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        {errors.profession_id && <p className="text-sm text-red-500">{errors.profession_id}</p>}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="room">Ruangan / Unit Kerja</Label>
+                                        <Select onValueChange={(v) => setData('room_id', v)} value={data.room_id}>
+                                            <SelectTrigger id="room"><SelectValue placeholder="-- Pilih Ruangan --" /></SelectTrigger>
+                                            <SelectContent>
+                                                {rooms.map(r => <SelectItem key={r.id} value={String(r.id)}>{r.name} {r.code ? `(${r.code})` : ''}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        {errors.room_id && <p className="text-sm text-red-500">{errors.room_id}</p>}
+                                    </div>
                                 </div>
 
                                 <DialogFooter className="mt-6">
@@ -222,30 +274,41 @@ export default function EmployeesIndex({ employees, professions, employmentStatu
                             <div>
                                 <CardTitle>Daftar Karyawan</CardTitle>
                                 <CardDescription className="mt-1">
-                                    Menampilkan <strong>{filteredEmployees.length}</strong> dari {employees.length} karyawan terdaftar.
+                                    Menampilkan <strong>{filteredEmployees.length}</strong> karyawan.
                                 </CardDescription>
                             </div>
                             {/* Filter & Search */}
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <div className="relative">
                                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
                                         placeholder="Cari nama, email, NIP..."
                                         value={searchQuery}
                                         onChange={e => setSearchQuery(e.target.value)}
-                                        className="pl-8 w-52"
+                                        className="pl-8 w-48"
                                     />
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
                                     <Select value={filterProfession} onValueChange={setFilterProfession}>
-                                        <SelectTrigger className="w-44">
+                                        <SelectTrigger className="w-40">
                                             <SelectValue placeholder="Semua Jabatan" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Semua Jabatan</SelectItem>
                                             {professions.map(p => (
                                                 <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Select value={filterRoom} onValueChange={setFilterRoom}>
+                                        <SelectTrigger className="w-40">
+                                            <SelectValue placeholder="Semua Ruangan" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Semua Ruangan</SelectItem>
+                                            {rooms.map(r => (
+                                                <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -260,6 +323,7 @@ export default function EmployeesIndex({ employees, professions, employmentStatu
                                     <TableHead>Nama</TableHead>
                                     <TableHead>Status / ID</TableHead>
                                     <TableHead>Jabatan</TableHead>
+                                    <TableHead>Ruangan</TableHead>
                                     <TableHead className="text-right">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -289,6 +353,11 @@ export default function EmployeesIndex({ employees, professions, employmentStatu
                                                 {emp.profession?.name || '-'}
                                             </span>
                                         </TableCell>
+                                        <TableCell>
+                                            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded">
+                                                {emp.room?.name || '-'}
+                                            </span>
+                                        </TableCell>
                                         <TableCell className='text-right space-x-2'>
                                             <Button variant="outline" size="sm" onClick={() => setShowConfirmReset(emp)} title="Reset Password">
                                                 <KeyRound className="h-3.5 w-3.5" />
@@ -310,6 +379,34 @@ export default function EmployeesIndex({ employees, professions, employmentStatu
                                 )}
                             </TableBody>
                         </Table>
+
+                        {/* Pagination Links */}
+                        {pagination && pagination.last_page > 1 && (
+                            <div className="flex items-center justify-between border-t pt-4 mt-4">
+                                <p className="text-sm text-slate-600">
+                                    Halaman <span className="font-bold">{pagination.current_page}</span> dari <span className="font-bold">{pagination.last_page}</span> ({pagination.total} Total Karyawan)
+                                </p>
+                                <div className="flex gap-1">
+                                    {pagination.links.map((link, idx) => {
+                                        if (!link.url) {
+                                            return (
+                                                <Button key={idx} variant="outline" size="sm" disabled dangerouslySetInnerHTML={{ __html: link.label }} />
+                                            );
+                                        }
+                                        return (
+                                            <a key={idx} href={link.url}>
+                                                <Button
+                                                    variant={link.active ? "default" : "outline"}
+                                                    size="sm"
+                                                    className={link.active ? "bg-blue-600 text-white" : ""}
+                                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                                />
+                                            </a>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

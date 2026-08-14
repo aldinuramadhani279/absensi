@@ -23,6 +23,7 @@ class User extends Authenticatable
         'email',
         'password',
         'profession_id',
+        'room_id',
         'status',
         'nip',
         'employee_id',
@@ -56,5 +57,13 @@ class User extends Authenticatable
     public function profession()
     {
         return $this->belongsTo(Profession::class);
+    }
+
+    /**
+     * Get the room associated with the user.
+     */
+    public function room()
+    {
+        return $this->belongsTo(Room::class);
     }
 }

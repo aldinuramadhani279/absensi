@@ -9,12 +9,18 @@ import { Label } from "@/Components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select"
 import { Toaster } from "@/Components/ui/toaster"
 import { useToast } from "@/hooks/use-toast"
-import { ArrowLeft, User, Briefcase, IdCard, Save, Lock, CheckCircle2, AlertCircle, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react"
+import { ArrowLeft, User, Briefcase, IdCard, Save, Lock, CheckCircle2, AlertCircle, Eye, EyeOff, Loader2, ShieldCheck, DoorOpen } from "lucide-react"
 import axios from "axios"
 
 interface Profession {
     id: number
     name: string
+}
+
+interface RoomItem {
+    id: number
+    name: string
+    code?: string
 }
 
 interface UserProfile {
@@ -27,6 +33,8 @@ interface UserProfile {
     must_change_password: boolean
     profession_id: number | null
     profession: Profession | null
+    room_id: number | null
+    room?: RoomItem | null
 }
 
 interface EmploymentStatusItem {
@@ -39,6 +47,7 @@ interface Props {
     user: UserProfile
     professions: Profession[]
     employmentStatuses?: EmploymentStatusItem[]
+    rooms?: RoomItem[]
     flash?: { success?: string; error?: string }
 }
 
@@ -50,12 +59,13 @@ const DEFAULT_STATUS_LABELS: Record<string, string> = {
     pblu: "PBLU",
 }
 
-export default function ProfilePage({ user, professions, employmentStatuses = [], flash }: Props) {
+export default function ProfilePage({ user, professions, employmentStatuses = [], rooms = [], flash }: Props) {
     const { toast } = useToast()
 
     // Form state
     const [name, setName] = useState(user?.name ?? "")
     const [professionId, setProfessionId] = useState(user?.profession_id?.toString() ?? "")
+    const [roomId, setRoomId] = useState(user?.room_id?.toString() ?? "")
     const [nip, setNip] = useState(user?.nip ?? "")
     const [employeeId, setEmployeeId] = useState(user?.employee_id ?? "")
     const [status, setStatus] = useState(user?.status ?? "")
@@ -82,19 +92,20 @@ export default function ProfilePage({ user, professions, employmentStatuses = []
         router.post("/profile", {
             name,
             profession_id: professionId,
+            room_id: roomId || null,
             nip: nip || null,
             employee_id: employeeId || null,
             status,
         }, {
             onSuccess: () => {
-                toast({ title: "✅ Profil Berhasil Disimpan!", description: "Data profil Anda telah diperbarui." })
+                toast({ title: "✅ Profil Berhasil Disimpan!", description: "Data profil & ploting ruangan Anda telah diperbarui." });
             },
             onError: (errors) => {
-                const msg = Object.values(errors).flat().join(", ")
-                toast({ variant: "destructive", title: "Gagal menyimpan", description: msg })
+                const msg = Object.values(errors).flat().join(", ");
+                toast({ variant: "destructive", title: "Gagal menyimpan", description: msg || "Periksa kembali input Anda." });
             },
             onFinish: () => setIsSaving(false),
-        })
+        });
     }
 
     const handleChangePassword = async (e: React.FormEvent) => {
@@ -240,6 +251,27 @@ export default function ProfilePage({ user, professions, employmentStatuses = []
                                         {professions.map((p) => (
                                             <SelectItem key={p.id} value={p.id.toString()}>
                                                 {p.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Ruangan / Unit Kerja */}
+                            <div className="space-y-1.5">
+                                <Label htmlFor="room" className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                    <DoorOpen className="h-3.5 w-3.5 text-blue-600" />
+                                    Ruangan / Unit Kerja (Ploting)
+                                    <span className="text-xs text-slate-400 font-normal">(Opsional)</span>
+                                </Label>
+                                <Select value={roomId} onValueChange={setRoomId}>
+                                    <SelectTrigger id="room" className="bg-white focus:ring-blue-100 focus:border-blue-400">
+                                        <SelectValue placeholder="-- Pilih Ruangan / Unit Kerja --" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {rooms.map((r) => (
+                                            <SelectItem key={r.id} value={r.id.toString()}>
+                                                {r.name} {r.code ? `(${r.code})` : ''}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

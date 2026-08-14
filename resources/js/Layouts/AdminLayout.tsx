@@ -1,6 +1,6 @@
 import { Link, router, usePage } from "@inertiajs/react";
 import { Button } from "@/Components/ui/button";
-import { Bell, Home, Users, Briefcase, FileText, Settings, LogOut, Shield, Clock, MailQuestion, Plane, AlertTriangle, UserCheck } from "lucide-react";
+import { Bell, Home, Users, Briefcase, FileText, Settings, LogOut, Shield, Clock, MailQuestion, Plane, AlertTriangle, UserCheck, DoorOpen } from "lucide-react";
 import { PropsWithChildren } from "react";
 
 export default function AdminLayout({ children }: PropsWithChildren) {
@@ -14,6 +14,7 @@ export default function AdminLayout({ children }: PropsWithChildren) {
 
     const navItems = [
         { href: "/admin", label: "Dashboard", icon: Home, exact: true },
+        { href: "/admin/rooms", label: "Ruangan", icon: DoorOpen },
         { href: "/admin/professions", label: "Jabatan", icon: Briefcase },
         { href: "/admin/employment-statuses", label: "Status Kepegawaian", icon: UserCheck },
         { href: "/admin/shifts", label: "Shift", icon: Clock },

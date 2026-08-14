@@ -134,6 +134,7 @@ export default function ReportsIndex(props: any) {
         setIsLoading(true);
         router.get('/admin/reports', {
             profession_id: professionId,
+            room_id: roomId,
             start_date: startDate,
             end_date: endDate
         }, {
@@ -146,6 +147,7 @@ export default function ReportsIndex(props: any) {
     const handleExport = () => {
         const params = new URLSearchParams();
         if (professionId) params.append('profession_id', professionId);
+        if (roomId) params.append('room_id', roomId);
         if (startDate) params.append('start_date', startDate);
         if (endDate) params.append('end_date', endDate);
         window.location.href = `/admin/reports/export?${params.toString()}`;
@@ -154,6 +156,7 @@ export default function ReportsIndex(props: any) {
     const handleExportMatrix = () => {
         const params = new URLSearchParams();
         if (professionId) params.append('profession_id', professionId);
+        if (roomId) params.append('room_id', roomId);
         if (startDate) params.append('start_date', startDate);
         if (endDate) params.append('end_date', endDate);
         window.location.href = `/admin/reports/export-matrix?${params.toString()}`;
@@ -181,7 +184,7 @@ export default function ReportsIndex(props: any) {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="profession">Jabatan</Label>
                                 <Select value={professionId} onValueChange={setProfessionId}>
@@ -192,6 +195,21 @@ export default function ReportsIndex(props: any) {
                                         <SelectItem value="all">Semua Jabatan</SelectItem>
                                         {professions.map((p: any) => (
                                             <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="room">Ruangan / Unit Kerja</Label>
+                                <Select value={roomId} onValueChange={setRoomId}>
+                                    <SelectTrigger id="room">
+                                        <SelectValue placeholder="Semua Ruangan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Semua Ruangan</SelectItem>
+                                        {rooms.map((r: any) => (
+                                            <SelectItem key={r.id} value={r.id.toString()}>{r.name}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>

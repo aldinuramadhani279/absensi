@@ -23,43 +23,42 @@ class AttendanceExport implements WithMultipleSheets
     protected $professionId;
     protected $startDate;
     protected $endDate;
+    protected $roomId;
 
-    public function __construct($professionId, $startDate, $endDate)
+    public function __construct($professionId = null, $startDate = null, $endDate = null, $roomId = null)
     {
         $this->professionId = $professionId;
         $this->startDate    = $startDate;
         $this->endDate      = $endDate;
+        $this->roomId       = $roomId;
     }
 
-    /**
-     * Build two clean, beautifully styled sheets:
-     * Sheet 1: Rekapitulasi Presensi per Karyawan (1 Baris = 1 Karyawan)
-     * Sheet 2: Rincian Detail Logs Presensi
-     */
     public function sheets(): array
     {
         return [
-            new MatrixAttendanceExport($this->professionId, $this->startDate, $this->endDate),
-            new RekapPerKaryawanSheet($this->professionId, $this->startDate, $this->endDate),
-            new DetailLogPresensiSheet($this->professionId, $this->startDate, $this->endDate),
+            new MatrixAttendanceExport($this->professionId, $this->startDate, $this->endDate, $this->roomId),
+            new RekapPerKaryawanSheet($this->professionId, $this->startDate, $this->endDate, $this->roomId),
+            new DetailLogPresensiSheet($this->professionId, $this->startDate, $this->endDate, $this->roomId),
         ];
     }
 }
 
 /**
- * Sheet 1: Rekapitulasi Presensi per Karyawan (1 Baris = 1 Karyawan)
+ * Sheet 2: Rekapitulasi Presensi per Karyawan (1 Baris = 1 Karyawan)
  */
 class RekapPerKaryawanSheet implements FromCollection, WithHeadings, WithMapping, WithTitle, ShouldAutoSize, WithStyles
 {
     protected $professionId;
     protected $startDate;
     protected $endDate;
+    protected $roomId;
 
-    public function __construct($professionId, $startDate, $endDate)
+    public function __construct($professionId = null, $startDate = null, $endDate = null, $roomId = null)
     {
         $this->professionId = $professionId;
         $this->startDate    = $startDate;
         $this->endDate      = $endDate;
+        $this->roomId       = $roomId;
     }
 
     public function title(): string
@@ -69,10 +68,14 @@ class RekapPerKaryawanSheet implements FromCollection, WithHeadings, WithMapping
 
     public function collection()
     {
-        $usersQuery = User::where('is_admin', false)->with('profession')->orderBy('name', 'asc');
+        $usersQuery = User::where('is_admin', false)->with(['profession', 'room'])->orderBy('name', 'asc');
 
         if ($this->professionId && $this->professionId !== 'all') {
             $usersQuery->where('profession_id', $this->professionId);
+        }
+
+        if ($this->roomId && $this->roomId !== 'all') {
+            $usersQuery->where('room_id', $this->roomId);
         }
 
         $users = $usersQuery->get();
@@ -117,6 +120,7 @@ class RekapPerKaryawanSheet implements FromCollection, WithHeadings, WithMapping
                 'status'              => strtoupper($user->status ?? '-'),
                 'nip'                 => $user->nip ?? $user->employee_id ?? '-',
                 'profession'          => $user->profession->name ?? '-',
+                'room'                => $user->room->name ?? '-',
                 'total_tepat_waktu'   => $totalTepatWaktu,
                 'total_terlambat'     => $totalTerlambat,
                 'total_dinas_cuti'    => $totalDinas + $totalLeave,
@@ -134,6 +138,7 @@ class RekapPerKaryawanSheet implements FromCollection, WithHeadings, WithMapping
             'Status Pegawai',
             'NIP / NRP / ID',
             'Jabatan',
+            'Ruangan',
             'Total Hadir (Tepat Waktu)',
             'Total Terlambat',
             'Total Cuti / Dinas',
@@ -150,6 +155,7 @@ class RekapPerKaryawanSheet implements FromCollection, WithHeadings, WithMapping
             $row->status,
             $row->nip,
             $row->profession,
+            $row->room,
             $row->total_tepat_waktu,
             $row->total_terlambat,
             $row->total_dinas_cuti,
@@ -208,12 +214,14 @@ class DetailLogPresensiSheet implements FromCollection, WithHeadings, WithMappin
     protected $professionId;
     protected $startDate;
     protected $endDate;
+    protected $roomId;
 
-    public function __construct($professionId, $startDate, $endDate)
+    public function __construct($professionId = null, $startDate = null, $endDate = null, $roomId = null)
     {
         $this->professionId = $professionId;
         $this->startDate    = $startDate;
         $this->endDate      = $endDate;
+        $this->roomId       = $roomId;
     }
 
     public function title(): string
@@ -223,11 +231,17 @@ class DetailLogPresensiSheet implements FromCollection, WithHeadings, WithMappin
 
     public function collection()
     {
-        $query = Attendance::with(['user.profession', 'shift']);
+        $query = Attendance::with(['user.profession', 'user.room', 'shift']);
 
         if ($this->professionId && $this->professionId !== 'all') {
             $query->whereHas('user', function ($q) {
                 $q->where('profession_id', $this->professionId);
+            });
+        }
+
+        if ($this->roomId && $this->roomId !== 'all') {
+            $query->whereHas('user', function ($q) {
+                $q->where('room_id', $this->roomId);
             });
         }
 
@@ -242,10 +256,15 @@ class DetailLogPresensiSheet implements FromCollection, WithHeadings, WithMappin
         $attendances = $query->get();
 
         // Get Travel Requests (Dinas)
-        $trQuery = TravelRequest::where('status', 'approved')->with('user.profession');
+        $trQuery = TravelRequest::where('status', 'approved')->with(['user.profession', 'user.room']);
         if ($this->professionId && $this->professionId !== 'all') {
             $trQuery->whereHas('user', function ($q) {
                 $q->where('profession_id', $this->professionId);
+            });
+        }
+        if ($this->roomId && $this->roomId !== 'all') {
+            $trQuery->whereHas('user', function ($q) {
+                $q->where('room_id', $this->roomId);
             });
         }
         if ($this->startDate) {
@@ -293,6 +312,7 @@ class DetailLogPresensiSheet implements FromCollection, WithHeadings, WithMappin
             'Status Pegawai',
             'NIP / NRP / ID',
             'Jabatan',
+            'Ruangan',
             'Shift',
             'Tanggal',
             'Jam Masuk',
@@ -342,6 +362,7 @@ class DetailLogPresensiSheet implements FromCollection, WithHeadings, WithMappin
             strtoupper($attendance->user->status                       ?? '-'),
             $attendance->user->nip ?? $attendance->user->employee_id   ?? '-',
             $attendance->user->profession->name                        ?? '-',
+            $attendance->user->room->name                              ?? '-',
             $attendance->shift->name                                   ?? '-',
             $tanggal                                                   ?? '-',
             $clockInFormatted,

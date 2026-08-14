@@ -19,6 +19,7 @@ export default function ReportsIndex(props: any) {
     const filters = props.filters || {};
 
     const [professionId, setProfessionId] = useState(filters.profession_id || '');
+    const [roomId, setRoomId] = useState(filters.room_id || '');
     const [startDate, setStartDate] = useState(filters.start_date || '');
     const [endDate, setEndDate] = useState(filters.end_date || '');
     const [isLoading, setIsLoading] = useState(false);

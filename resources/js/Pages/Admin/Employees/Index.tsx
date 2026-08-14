@@ -279,18 +279,30 @@ export default function EmployeesIndex({
                             </div>
                             {/* Filter & Search */}
                             <div className="flex flex-wrap items-center gap-2">
-                                <div className="relative">
-                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Cari nama, email, NIP..."
-                                        value={searchQuery}
-                                        onChange={e => setSearchQuery(e.target.value)}
-                                        className="pl-8 w-48"
-                                    />
-                                </div>
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    router.get('/admin/employees', { profession_id: filterProfession, room_id: filterRoom, search: searchQuery }, { preserveState: true, preserveScroll: true });
+                                }} className="relative flex gap-1">
+                                    <div className="relative">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Cari nama, email, NIP..."
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            className="pl-8 w-48"
+                                        />
+                                    </div>
+                                    <Button type="submit" variant="secondary" size="sm">Cari</Button>
+                                </form>
                                 <div className="flex items-center gap-1">
                                     <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <Select value={filterProfession} onValueChange={setFilterProfession}>
+                                    <Select
+                                        value={filterProfession}
+                                        onValueChange={(val) => {
+                                            setFilterProfession(val);
+                                            router.get('/admin/employees', { profession_id: val, room_id: filterRoom, search: searchQuery }, { preserveState: true, preserveScroll: true });
+                                        }}
+                                    >
                                         <SelectTrigger className="w-40">
                                             <SelectValue placeholder="Semua Jabatan" />
                                         </SelectTrigger>
@@ -301,7 +313,13 @@ export default function EmployeesIndex({
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <Select value={filterRoom} onValueChange={setFilterRoom}>
+                                    <Select
+                                        value={filterRoom}
+                                        onValueChange={(val) => {
+                                            setFilterRoom(val);
+                                            router.get('/admin/employees', { profession_id: filterProfession, room_id: val, search: searchQuery }, { preserveState: true, preserveScroll: true });
+                                        }}
+                                    >
                                         <SelectTrigger className="w-40">
                                             <SelectValue placeholder="Semua Ruangan" />
                                         </SelectTrigger>

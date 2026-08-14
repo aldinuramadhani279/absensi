@@ -13,7 +13,7 @@ class RoomController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Room::withCount('users')->orderBy('name', 'asc');
+        $query = Room::withCount('users')->with(['users.profession'])->orderBy('name', 'asc');
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {

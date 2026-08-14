@@ -8,8 +8,18 @@ import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
 import { Textarea } from "@/Components/ui/textarea";
 import { Badge } from "@/Components/ui/badge";
-import { Plus, Edit2, Trash2, DoorOpen, Users, Search, ChevronLeft, ChevronRight, Layers } from "lucide-react";
+import { Plus, Edit2, Trash2, DoorOpen, Users, Search, Eye, ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+interface RoomUser {
+    id: number;
+    name: string;
+    email: string;
+    status?: string;
+    nip?: string;
+    employee_id?: string;
+    profession?: { name: string };
+}
 
 interface Room {
     id: number;
@@ -17,6 +27,7 @@ interface Room {
     code?: string;
     description?: string;
     users_count?: number;
+    users?: RoomUser[];
     created_at?: string;
 }
 
@@ -41,6 +52,7 @@ export default function RoomsIndex({ rooms, filters }: { rooms: PaginatedRooms; 
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editingRoom, setEditingRoom] = useState<Room | null>(null);
     const [deletingRoom, setDeletingRoom] = useState<Room | null>(null);
+    const [inspectingRoom, setInspectingRoom] = useState<Room | null>(null);
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name: "",
@@ -172,15 +184,22 @@ export default function RoomsIndex({ rooms, filters }: { rooms: PaginatedRooms; 
                                     </CardHeader>
 
                                     <CardFooter className="pt-2 border-t border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-b-lg">
-                                        <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                                            <Users className="h-3.5 w-3.5 text-slate-500" />
-                                            <span>{room.users_count || 0} Karyawan</span>
-                                        </div>
+                                        {/* Tombol Inspect / Lihat Karyawan di Ruangan */}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setInspectingRoom(room)}
+                                            className="h-8 text-xs gap-1.5 border-blue-200 text-blue-700 bg-blue-50/50 hover:bg-blue-100 hover:text-blue-800 font-medium"
+                                        >
+                                            <Eye className="h-3.5 w-3.5 text-blue-600" />
+                                            Inspect ({room.users_count || 0})
+                                        </Button>
+
                                         <div className="flex items-center gap-1">
-                                            <Button variant="ghost" size="icon" onClick={() => handleEditOpen(room)} className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                                            <Button variant="ghost" size="icon" onClick={() => handleEditOpen(room)} className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50" title="Edit Ruangan">
                                                 <Edit2 className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => setDeletingRoom(room)} className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50">
+                                            <Button variant="ghost" size="icon" onClick={() => setDeletingRoom(room)} className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50" title="Hapus Ruangan">
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
@@ -219,6 +238,69 @@ export default function RoomsIndex({ rooms, filters }: { rooms: PaginatedRooms; 
                     </>
                 )}
             </div>
+
+            {/* Modal Inspect (Melihat Siapa Saja Karyawan di Dalam Ruangan) */}
+            <Dialog open={!!inspectingRoom} onOpenChange={(open) => !open && setInspectingRoom(null)}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+                            <DoorOpen className="h-5 w-5 text-blue-600" />
+                            Karyawan di {inspectingRoom?.name}
+                            {inspectingRoom?.code && (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-mono text-xs">
+                                    {inspectingRoom.code}
+                                </Badge>
+                            )}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Daftar seluruh karyawan yang ter-ploting di ruangan ini ({inspectingRoom?.users?.length || 0} Karyawan).
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-2 max-h-[55vh] overflow-y-auto space-y-2">
+                        {inspectingRoom?.users && inspectingRoom.users.length > 0 ? (
+                            <div className="divide-y border border-slate-200 rounded-lg overflow-hidden">
+                                {inspectingRoom.users.map((u) => (
+                                    <div key={u.id} className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                        <div className="space-y-0.5">
+                                            <p className="font-semibold text-sm text-slate-900">{u.name}</p>
+                                            <p className="text-xs text-slate-500">{u.email}</p>
+                                            <div className="flex items-center gap-2 pt-1">
+                                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-slate-100 text-slate-700">
+                                                    {u.profession?.name || 'Belum Ada Jabatan'}
+                                                </Badge>
+                                                {(u.nip || u.employee_id) && (
+                                                    <span className="text-xs text-slate-400 font-mono">
+                                                        {u.nip || u.employee_id}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-none text-xs">
+                                            {u.status ? u.status.toUpperCase() : 'AKTIF'}
+                                        </Badge>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="p-8 text-center border-dashed border-2 border-slate-200 rounded-lg">
+                                <Users className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+                                <p className="text-sm font-medium text-slate-600">Belum ada karyawan di ruangan ini.</p>
+                                <p className="text-xs text-slate-400 mt-1">Gunakan menu Data Karyawan atau Edit Profil untuk memploting karyawan ke ruangan ini.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="flex items-center justify-between">
+                        <Button variant="outline" onClick={() => setInspectingRoom(null)}>Tutup</Button>
+                        <Link href={`/admin/employees?room_id=${inspectingRoom?.id}`}>
+                            <Button className="bg-blue-600 hover:bg-blue-700">
+                                Lihat di Data Karyawan
+                            </Button>
+                        </Link>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Modal Tambah Ruangan */}
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>

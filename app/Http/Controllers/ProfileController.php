@@ -85,4 +85,42 @@ class ProfileController extends Controller
 
         return response()->json(['message' => 'Password berhasil diperbarui.']);
     }
+
+    /**
+     * Tampilkan halaman paksa ganti password (setelah admin reset).
+     */
+    public function showForceChange()
+    {
+        $user = Auth::user();
+
+        // Jika tidak perlu ganti password, redirect ke home
+        if (!$user->must_change_password) {
+            return redirect('/home');
+        }
+
+        return Inertia::render('Auth/ForceChangePassword', [
+            'user_name' => $user->name,
+        ]);
+    }
+
+    /**
+     * Proses paksa ganti password.
+     */
+    public function forceChange(Request $request)
+    {
+        $request->validate([
+            'password'              => 'required|string|min:8|confirmed',
+            'password_confirmation' => 'required|string',
+        ], [
+            'password.min'       => 'Password baru minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
+        ]);
+
+        $user = Auth::user();
+        $user->password             = Hash::make($request->password);
+        $user->must_change_password = false;
+        $user->save();
+
+        return redirect('/home')->with('success', 'Password berhasil diubah. Selamat datang!');
+    }
 }

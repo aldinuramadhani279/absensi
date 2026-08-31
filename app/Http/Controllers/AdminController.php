@@ -120,11 +120,11 @@ class AdminController extends Controller
             ->map(function ($request) {
                 return [
                     'id'               => $request->id,
-                    'user_name'        => $request->user->name,
-                    'user_email'       => $request->user->email,
-                    'user_nip'         => $request->user->nip,
-                    'user_employee_id' => $request->user->employee_id,
-                    'requested_at'     => $request->created_at->toIso8601String(),
+                    'user_name'        => optional($request->user)->name ?? 'User Terhapus',
+                    'user_email'       => optional($request->user)->email ?? '-',
+                    'user_nip'         => optional($request->user)->nip ?? '-',
+                    'user_employee_id' => optional($request->user)->employee_id ?? '-',
+                    'requested_at'     => $request->created_at ? $request->created_at->toIso8601String() : now()->toIso8601String(),
                     'status'           => $request->status,
                 ];
             });

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button } from "@/Components/ui/button";
@@ -86,24 +86,15 @@ export default function EmployeesIndex({
     const [showConfirmReset, setShowConfirmReset] = useState<User | null>(null);
     const [isProcessingAction, setIsProcessingAction] = useState(false);
 
-    // Filter states
+    // Filter states (hanya untuk mengirim request ke server, TIDAK melakukan client-side filtering)
     const [searchQuery, setSearchQuery] = useState(filters?.search || '');
     const [filterProfession, setFilterProfession] = useState<string>(filters?.profession_id || 'all');
     const [filterRoom, setFilterRoom] = useState<string>(filters?.room_id || 'all');
 
-    // Filtered employees
-    const filteredEmployees = useMemo(() => {
-        return employeeData.filter(emp => {
-            const matchSearch = searchQuery === '' ||
-                emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (emp.email && emp.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                (emp.nip && emp.nip.includes(searchQuery)) ||
-                (emp.employee_id && emp.employee_id.includes(searchQuery));
-            const matchProfession = filterProfession === 'all' || String(emp.profession?.id) === filterProfession;
-            const matchRoom = filterRoom === 'all' || String(emp.room?.id) === filterRoom;
-            return matchSearch && matchProfession && matchRoom;
-        });
-    }, [employeeData, searchQuery, filterProfession, filterRoom]);
+    // [FIX BUG #3] Tidak pakai client-side filteredEmployees — gunakan server-side pagination.
+    // Sebelumnya ada useMemo yang filter 15 baris di frontend saja, sehingga search by name
+    // tidak menampilkan karyawan di halaman lain. Sekarang tabel langsung pakai employeeData.
+
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -274,7 +265,7 @@ export default function EmployeesIndex({
                             <div>
                                 <CardTitle>Daftar Karyawan</CardTitle>
                                 <CardDescription className="mt-1">
-                                    Menampilkan <strong>{filteredEmployees.length}</strong> karyawan.
+                                    Menampilkan <strong>{pagination ? pagination.total : employeeData.length}</strong> karyawan{filters?.search ? ` dengan pencarian "${filters.search}"` : ''}.
                                 </CardDescription>
                             </div>
                             {/* Filter & Search */}
@@ -346,7 +337,7 @@ export default function EmployeesIndex({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredEmployees.length > 0 ? filteredEmployees.map(emp => (
+                                {employeeData.length > 0 ? employeeData.map(emp => (
                                     <TableRow key={emp.id}>
                                         <TableCell>
                                             <div className='font-medium'>{emp.name}</div>
@@ -387,8 +378,8 @@ export default function EmployeesIndex({
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
-                                            {searchQuery || filterProfession !== 'all'
+                                        <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                                            {filters?.search || filterProfession !== 'all' || filterRoom !== 'all'
                                                 ? 'Tidak ada karyawan yang cocok dengan filter.'
                                                 : 'Tidak ada data karyawan.'
                                             }

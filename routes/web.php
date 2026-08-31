@@ -26,6 +26,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/leave-requests', [App\Http\Controllers\LeaveRequestController::class, 'index'])->name('leave-requests.index');
     Route::post('/leave-requests', [App\Http\Controllers\LeaveRequestController::class, 'store'])->name('leave-requests.store');
 
+    // [FIX BUG #1] Route paksa ganti password setelah admin reset password
+    Route::get('/password/force-change', [App\Http\Controllers\ProfileController::class, 'showForceChange'])->name('password.force-change');
+    Route::post('/password/force-change', [App\Http\Controllers\ProfileController::class, 'forceChange'])->name('password.force-change.update');
+
     Route::get('/travel-requests', [App\Http\Controllers\TravelRequestController::class, 'index'])->name('travel-requests.index');
     Route::post('/travel-requests', [App\Http\Controllers\TravelRequestController::class, 'store'])->name('travel-requests.store');
 

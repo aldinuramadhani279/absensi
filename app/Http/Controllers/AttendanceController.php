@@ -249,13 +249,21 @@ class AttendanceController extends Controller
         $shift         = $attendance->shift;
 
         if ($shift && !str_contains(strtolower($shift->name ?? ''), 'custom')) {
+            $clockInTime    = \Carbon\Carbon::parse($attendance->clock_in);
             $shiftEndPart   = \Carbon\Carbon::parse($shift->end_time);
             $shiftStartPart = \Carbon\Carbon::parse($shift->start_time);
-            $shiftEnd       = now()->setTime($shiftEndPart->hour, $shiftEndPart->minute, 0);
 
-            // Shift malam melewati tengah malam (end_time < start_time → +1 hari)
-            if ($shiftEndPart->lt($shiftStartPart)) {
-                $shiftEnd->addDay();
+            // Shift end time dihitung berbasis tanggal clock_in
+            $shiftEnd = $clockInTime->copy()->setTime($shiftEndPart->hour, $shiftEndPart->minute, 0);
+
+            // Shift malam / lintas hari (end_time <= start_time)
+            if ($shiftEndPart->lte($shiftStartPart)) {
+                // Jika clock_in terjadi setelah midnight (misal 01:00 AM) untuk shift malam 20:00,
+                // shiftEnd sudah otomatis tepat di hari tersebut.
+                // Jika tidak (clock_in di malam hari / pagi sebelum shift), shiftEnd berada di hari berikutnya.
+                if (!($clockInTime->hour < $shiftEndPart->hour && $shiftStartPart->hour >= 12)) {
+                    $shiftEnd->addDay();
+                }
             }
 
             $clockOutNow = now();

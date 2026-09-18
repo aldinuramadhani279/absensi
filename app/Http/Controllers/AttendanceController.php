@@ -242,7 +242,35 @@ class AttendanceController extends Controller
             'lon_out'          => $request->longitude ?? null,
         ]);
 
-        return response()->json(['message' => 'Clock Out Berhasil', 'attendance' => $attendance]);
+        // [FITUR] Hitung apakah user pulang lebih awal dari jam shift
+        $attendance->refresh()->load('shift');
+        $isEarlyLeave  = false;
+        $earlyMinutes  = 0;
+        $shift         = $attendance->shift;
+
+        if ($shift && !str_contains(strtolower($shift->name ?? ''), 'custom')) {
+            $shiftEndPart   = \Carbon\Carbon::parse($shift->end_time);
+            $shiftStartPart = \Carbon\Carbon::parse($shift->start_time);
+            $shiftEnd       = now()->setTime($shiftEndPart->hour, $shiftEndPart->minute, 0);
+
+            // Shift malam melewati tengah malam (end_time < start_time → +1 hari)
+            if ($shiftEndPart->lt($shiftStartPart)) {
+                $shiftEnd->addDay();
+            }
+
+            $clockOutNow = now();
+            if ($clockOutNow->lt($shiftEnd)) {
+                $earlyMinutes = (int) $clockOutNow->diffInMinutes($shiftEnd);
+                $isEarlyLeave = $earlyMinutes > 0;
+            }
+        }
+
+        return response()->json([
+            'message'        => 'Clock Out Berhasil',
+            'attendance'     => $attendance,
+            'is_early_leave' => $isEarlyLeave,
+            'early_minutes'  => $earlyMinutes,
+        ]);
     }
 
     /**

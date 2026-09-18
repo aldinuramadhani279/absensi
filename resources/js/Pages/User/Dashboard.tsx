@@ -83,6 +83,10 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
     const [showStatusDialog, setShowStatusDialog] = useState(false)
     const [statusResult, setStatusResult] = useState<{ label: string, status: string, status_code: string, time_diff: string } | null>(null)
 
+    // [FITUR] Pulang Lebih Awal Dialog State
+    const [showEarlyLeaveDialog, setShowEarlyLeaveDialog] = useState(false)
+    const [earlyLeaveMinutes, setEarlyLeaveMinutes] = useState(0)
+
     // Whistleblowing State
     const [showWhistleblowing, setShowWhistleblowing] = useState(false);
     const [wbType, setWbType] = useState<string>("Tindak Kecurangan / Korupsi");
@@ -477,13 +481,21 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                 headers: { 'Content-Type': 'multipart/form-data' },
                 timeout: 45000
             });
-            toast({ title: "Clock Out Berhasil!" });
-            router.reload({
-                only: ['attendance'],
-                onSuccess: (page) => {
-                    setAttendance(page.props.attendance as Attendance);
-                }
-            });
+
+            // [FIX BUG UX] Langsung update local state dari response API sebelum router.reload()
+            // Tanpa ini, UI akan balik ke tampilan "belum absen" dan user harus refresh manual
+            setAttendance(response.data.attendance);
+
+            // [FITUR] Cek apakah pulang lebih awal dari jam shift
+            if (response.data.is_early_leave && response.data.early_minutes > 0) {
+                setEarlyLeaveMinutes(response.data.early_minutes);
+                setShowEarlyLeaveDialog(true);
+            } else {
+                toast({ title: "✅ Clock Out Berhasil!", description: "Sampai jumpa besok!" });
+            }
+
+            // Sync data dari server (attendance sudah di-set dari response di atas)
+            router.reload({ only: ['attendance'] });
         } catch (error: any) {
             if (error.response?.status === 401 || error.response?.status === 419) {
                 setShowSessionExpired(true);
@@ -845,6 +857,39 @@ export default function EmployeeDashboard({ auth, attendance: initialAttendance,
                                 onClick={() => window.location.reload()}
                             >
                                 🔄 Refresh Browser Sekarang
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                {/* [FITUR] Dialog Pulang Lebih Awal */}
+                <AlertDialog open={showEarlyLeaveDialog} onOpenChange={setShowEarlyLeaveDialog}>
+                    <AlertDialogContent className="sm:max-w-md text-center">
+                        <AlertDialogHeader className="flex flex-col items-center justify-center">
+                            <div className="flex flex-col items-center mb-3">
+                                <Clock9 className="h-16 w-16 text-amber-500 mb-2" />
+                                <span className="text-3xl">⚠️</span>
+                            </div>
+                            <AlertDialogTitle className="text-xl font-bold text-amber-700">
+                                Clock Out Berhasil
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="mt-3 space-y-2 text-base">
+                                <span className="block text-gray-700">
+                                    Anda tercatat <strong className="text-amber-600">Pulang Lebih Awal</strong>{' '}
+                                    <strong className="text-2xl text-amber-700">{earlyLeaveMinutes} menit</strong>{' '}
+                                    dari jadwal shift Anda.
+                                </span>
+                                <span className="block text-amber-800 font-semibold mt-2">
+                                    Jangan diulangi lagi ya besok! 🙏
+                                </span>
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="sm:justify-center mt-4">
+                            <AlertDialogAction
+                                className="w-full bg-amber-600 hover:bg-amber-700 font-bold"
+                                onClick={() => setShowEarlyLeaveDialog(false)}
+                            >
+                                Baik, Saya Mengerti
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
